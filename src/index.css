@@ -1,0 +1,68 @@
+:root {
+  --or: #C0600C;
+  --or2: #E8893A;
+  --bg: #F2EDE7;
+  --wh: #fff;
+  --bdr: #DDD4C8;
+  --tx: #1A1714;
+  --tx2: #6B6460;
+  --tx3: #A89F98;
+  --gr: #2A7A46;
+  --bl: #1A6FA5;
+  --rd: #B52525;
+  --am: #8A6200;
+  --navh: 64px;
+  --toph: 56px;
+  --radius: 14px;
+
+  /* ── Warm-„Claude"-Item-Design (2026-07-09) — additiv, ändert Bestehendes nicht ── */
+  --card: #FFFDF9;          /* warmes Papier-Weiß für Item-Karten */
+  --card-line: #ECE2D3;     /* warme Hairline für Item-Karten */
+  --tok-bg: #F4EADB;        /* Emoji-Token-Hintergrund (warmer Sand) */
+  --chip-bg: #F5EFE6;       /* Meta-Chip-Hintergrund */
+  /* App-weite EINE Schriftfamilie: sauber/klar Calibri-Stil. Hierarchie NUR über Größe + Weight,
+     nicht über verschiedene Familien. Carlito = gebündelter, metrik-identischer Calibri-Klon →
+     geräteübergreifend gleich (Windows, Android, iOS). Calibri/Segoe UI als System-Fallback. */
+  --font-ui: 'Carlito', Calibri, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  --display: var(--font-ui);   /* Titel = gleiche Familie, nur schwerer/größer */
+  --shadow-item: 0 1px 2px rgba(60,45,30,.05), 0 8px 20px rgba(60,45,30,.07);
+
+  /* Cape-York-Map-Farbpalette — vom User gewünscht: natürlich grün-türkis (Pflanzen + Küste)
+     mit warmem Beige-Akzent (Strand). Tropische Cape-Stimmung ohne kitschig zu wirken. */
+  --map-water: #6FBFB0;        /* türkis-grün, Korallensee + Karpentariengolf */
+  --map-water-deep: #4DA694;   /* dunkleres Türkis für Tiefen-Akzente */
+  --map-land: #EFE6CE;         /* warmes Beige, Strand + Halbinsel-Grundton */
+  --map-beach: #F5EFD8;        /* helleres Beige für Coast-Stroke */
+  --map-vegetation: #7AAE85;   /* frisches Grün, innere Halbinsel-Vegetation */
+  --map-road: #6B4E2D;         /* warmes Braun, gesealte Strassen */
+  --map-road-track: #B19268;   /* helles Braun, Old Telegraph Track (gestrichelt) */
+  --map-text: #2F4A3E;         /* dunkel grün-grau, lesbar auf Land */
+  --map-park-fill: rgba(58, 116, 72, 0.18);    /* transparentes Grün für NP-Flächen */
+  --map-park-stroke: #3A7448;                   /* dunkleres Grün für NP-Outline */
+  --map-river: #4A7FB8;                         /* mid-blue, klar anders als türkis-grünes Salzwasser */
+  --map-trip-route: #C0600C;                    /* App-Orange für die User-Trip-Route + Trip-Stop-Marker */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--tx);
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}

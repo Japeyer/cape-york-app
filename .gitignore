@@ -1,0 +1,26 @@
+node_modules/
+dist/
+dev-dist/
+.env
+.env.local
+*.local
+
+# Auto-generated von scripts/build-privacy.mjs (Source: PRIVACY.md).
+# Wird beim Build (npm run prebuild) frisch generiert.
+public/privacy.html
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# Editor folders (just in case)
+.vscode/
+.idea/
+
+# Claude Code local settings (per-developer)
+.claude/
+
+# Recon-Reststück (QPWS-Metadata, siehe CHANGELOG 2026-05-15 (v))
+qpws-meta.xml
