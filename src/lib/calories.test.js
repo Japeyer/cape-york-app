@@ -81,6 +81,12 @@ describe('personDailyKcal — Custom-Modus', () => {
     expect(personDailyKcal({ type: 'adult-m', appetite: 'custom' })).toBe(2835)
     expect(personDailyKcal({ type: 'adult-m', appetite: 'custom', customKcal: NaN })).toBe(2835)
   })
+  it('klemmt einen zu hohen Wert defensiv (6000 → 4500), auch außerhalb der UI', () => {
+    expect(personDailyKcal({ type: 'adult-m', appetite: 'custom', customKcal: 6000 })).toBe(4500)
+  })
+  it('klemmt einen zu niedrigen Wert defensiv (500 → 1500)', () => {
+    expect(personDailyKcal({ type: 'adult-f', appetite: 'custom', customKcal: 500 })).toBe(1500)
+  })
 })
 
 describe('personDailyKcal — Defensive Defaults', () => {
@@ -124,6 +130,10 @@ describe('groupFactor', () => {
       { type: 'adult-m', appetite: 'custom', customKcal: 2700 },  // Faktor 1.0 exakt
     ])
     expect(f).toBeCloseTo(1.0, 5)
+  })
+  it('klemmt einen ungeklemmten Custom-Wert im Faktor (6000 → 4500/2700)', () => {
+    const f = groupFactor([{ type: 'adult-m', appetite: 'custom', customKcal: 6000 }])
+    expect(f).toBeCloseTo(4500 / 2700, 5)   // NICHT 6000/2700 — defensive Klemmung greift
   })
 })
 

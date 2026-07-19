@@ -191,6 +191,14 @@ const PEOPLE_SETS = [
   [{ type: 'adult-m', appetite: 'heavy' }, { type: 'child', appetite: 'light' }, { type: 'adult-f', appetite: 'medium' }],
   // volle 8er-Gruppe gemischt
   [...persons(3, 'adult-m', 'heavy'), ...persons(3, 'adult-f', 'medium'), ...persons(2, 'child', 'light')],
+  // ── Custom-Kalorien (manuelle kcal/Tag) — Appetit-Achse, die vorher fehlte ──
+  [{ type: 'adult-m', appetite: 'custom', customKcal: 4500 }],                 // UI-Maximum
+  [{ type: 'child', appetite: 'custom', customKcal: 1500 }],                   // UI-Minimum
+  [{ type: 'adult-m', appetite: 'custom', customKcal: 6000 }],                 // über Max → wird geklemmt
+  // gemischt: Custom-Vielfraß + Standard-Esser + Kind
+  [{ type: 'adult-m', appetite: 'custom', customKcal: 4200 }, { type: 'adult-f', appetite: 'medium' }, { type: 'child', appetite: 'light' }],
+  // 8× Custom-Maximum (höchster realistischer Faktor)
+  Array.from({ length: 8 }, () => ({ type: 'adult-m', appetite: 'custom', customKcal: 4500 })),
 ]
 
 describe('Sicherheits-Sweep B — Skalierung (Personen × Tage × Diät × Kühlschrank)', () => {
@@ -280,6 +288,33 @@ describe('Sicherheits-Check I5 — Frisch-Routing kauft nichts zu spät', () => 
       }
     }
     expect(fails).toEqual([])
+  })
+})
+
+// ── Custom-Kalorien: defensive Klemmung greift auch im Generator ──────────────
+// Die UI klemmt customKcal auf 1500–4500. Ein via localStorage/Import eingeschleuster
+// Wert (6000) darf keinen absurden Skalierungs-Faktor erzeugen — die Klemmung sitzt
+// zentral in calories.js (personFactor), der Generator ist über groupFactor geschützt.
+
+describe('Sicherheits-Check — Custom-Kalorien werden im Generator geklemmt', () => {
+  const cfg = (kcal) => ({
+    days: 16, people: [{ type: 'adult-m', appetite: 'custom', customKcal: kcal }],
+    diet: 'omnivore', burners: 2, cookEffort: 'high', fridgeSize: 'large', bamagaStop: true,
+  })
+
+  it('ungeklemmte 6000 kcal ergeben denselben Plan/Einkauf wie das Maximum 4500', () => {
+    const over = generate(cfg(6000))
+    const max = generate(cfg(4500))
+    // groupFactor identisch (6000 wurde auf 4500 geklemmt), nicht 6000/2700.
+    expect(over.config.groupFactor).toBeCloseTo(4500 / 2700, 5)
+    expect(over.config.groupFactor).toBeCloseTo(max.config.groupFactor, 5)
+    // → damit auch Plan + Einkaufsliste identisch
+    expect(JSON.stringify(over.shopping)).toBe(JSON.stringify(max.shopping))
+  })
+
+  it('zu niedrige 500 kcal werden auf das Minimum 1500 angehoben', () => {
+    const under = generate(cfg(500))
+    expect(under.config.groupFactor).toBeCloseTo(1500 / 2700, 5)
   })
 })
 

@@ -44,7 +44,10 @@ export function roundToHundred(n) {
 
 function personFactor(p) {
   if (p?.appetite === 'custom' && Number.isFinite(p?.customKcal)) {
-    return p.customKcal / BASE_KCAL
+    // Defensiv klemmen: die UI klemmt beim Eingeben, aber ein via localStorage/Import
+    // eingeschleuster Wert (z.B. 6000) darf keinen absurden Skalierungs-Faktor erzeugen.
+    // Der Generator rechnet über groupFactor → personFactor, ist damit automatisch geschützt.
+    return clampCustomKcal(p.customKcal) / BASE_KCAL
   }
   const t = TYPE_FACTOR[p?.type] ?? TYPE_FACTOR['adult-m']
   const a = APPETITE_FACTOR[p?.appetite] ?? APPETITE_FACTOR['medium']
@@ -53,7 +56,9 @@ function personFactor(p) {
 
 export function personDailyKcal(p) {
   if (p?.appetite === 'custom' && Number.isFinite(p?.customKcal)) {
-    return p.customKcal
+    // Gleiche Klemmung wie in personFactor, damit Anzeige und tatsächlicher Einkauf
+    // denselben (geklemmten) Wert benutzen — sonst zeigte die App 6000 an, kaufte aber für 4500.
+    return clampCustomKcal(p.customKcal)
   }
   return Math.round(personFactor(p) * BASE_KCAL)
 }

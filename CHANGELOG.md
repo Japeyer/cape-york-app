@@ -5,6 +5,43 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-19 (bb) — Custom-Kalorien: defensive Klemmung + Sweep-Abdeckung (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Wie sieht es aus, wenn die Personen nicht mittlere Kalorien angeben,
+sondern weniger oder gar manuell z. B. 6000 kcal für eine Person? Ehrliche und fundierte Antwort."
+
+**Untersuchung (empirisch, nicht spekuliert):**
+- `generate()` ist über den ganzen Faktor-Bereich robust — von 0.44 (Kind, light) bis 17.8
+  (8× custom 6000 ungeklemmt): keine leeren Slots, keine Unterdeckung, keine kaputten Mengen,
+  Mengen skalieren proportional. Also: **kein Hunger durch einen Skalierungs-Bug.**
+- **Befund 1:** `clampCustomKcal` (1500–4500) lief bisher **nur in der UI** (`ConfiguratorTab`),
+  NICHT in `generate()`/`personFactor`. Über die Oberfläche ist 6000 nicht eingebbar (→ 4500),
+  aber ein via localStorage/Import eingeschleuster Wert hätte einen ungeklemmten Faktor (2.22) erzeugt.
+- **Befund 2:** Der Sicherheits-Sweep (ba) testete `light/medium/heavy/mixed`, aber **kein `custom`-kcal**.
+- **Befund 3 (Produktgrenze):** „kcal" ist ein reiner Mengen-Multiplikator (`customKcal/2700`).
+  `recipe.kcal` ist ein statischer Anzeige-String, fließt NICHT in Auswahl/Skalierung ein; es gibt
+  keine Zutaten-kcal-Daten. Ein Soll-Ist-Kalorien-Abgleich ist mit dem aktuellen Modell nicht möglich.
+
+**Fix A — Härtung (`calories.js`):** `clampCustomKcal` zentral in `personFactor` + `personDailyKcal`
+angewandt. Der Generator rechnet über `groupFactor` → `personFactor`, ist damit automatisch geschützt;
+Anzeige und tatsächlicher Einkauf nutzen denselben geklemmten Wert. 6000 → 4500, 500 → 1500.
+NaN-Fallback bleibt intakt (isFinite-Check vor dem Clamp). +4 Tests in `calories.test.js`.
+
+**Fix B — Sweep-Abdeckung (`generator.safety.test.js`):** `PEOPLE_SETS` um 5 Custom-Fälle erweitert
+(UI-Max 4500, UI-Min 1500, über-Max 6000, gemischt Custom+Standard+Kind, 8× Max) → Sweep B jetzt
+360 Konfigurationen. Plus 2 End-to-End-Härtungstests: 6000 kcal ⇒ identischer groupFactor/Plan/Einkauf
+wie 4500 (nicht 6000/2700); 500 ⇒ 1500-Faktor.
+
+**Bewusst NICHT gemacht (Produktentscheidung offen):** Keine echte Kalorien-Garantie gebaut — das
+erforderte Zutaten-kcal-Daten + einen Soll-Ist-Abgleich (größeres Stück). „kcal" bleibt vorerst ein
+Portionsgrößen-Regler. Ebenfalls dokumentiert, nicht geändert: Wasser/Essentials skalieren mit der
+Personen-Anzahl, nicht mit dem kcal-Faktor (physiologisch vertretbar).
+
+**Ergebnis:** 357 → **362 Tests grün** (+5: 4 calories, 2 safety − wobei safety-Datei 5→7).
+Build grün. Geändert: `calories.js`, `calories.test.js`, `generator.safety.test.js`.
+
+---
+
 ## 2026-07-19 (ba) — „Niemand hungert"-Testverfahren (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Ich will sicher gehen, dass die Menüs und die Skalierung zu 100%
