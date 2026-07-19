@@ -90,7 +90,7 @@ export const RECIPES = [
    name:'Avocado toast with tomato',
    time:'5 min',tools:'1 pan or knife',kcal:'~650 kcal/person',
    diet:'vegan',cooling:'medium',effort:'easy',burners:1,
-   ing:[['Sandwich bread','2 slices/person'],['Avocado','1 ripe/person'],['Tomato','1/person, sliced'],['Lemon juice','1 tbsp'],['Olive oil','1 tbsp/person'],['Chili flakes','to taste'],['Salt & pepper','to taste']],
+   ing:[['Sandwich bread','2 slices/person'],['Avocado','1 ripe/person'],['Tomato','1/person, sliced'],['Lemon juice','1 tbsp'],['Olive oil','2 tbsp'],['Chili flakes','to taste'],['Salt & pepper','to taste']],
    steps:['Toast bread in a dry pan over medium heat 1–2 min per side, or eat untoasted if no gas.','Halve avocado, scoop into bowl, mash with fork. Add lemon juice, salt.','Spread avocado generously and thickly on the toast.','Top with tomato slices, drizzle olive oil, scatter chili flakes.','Season with pepper.'],
    tip:'Pile the avocado thick — the calories are the point. Buy avocados slightly underripe in Cairns and let them ripen in the heat. Add Vegemite under the avocado for an Aussie twist.'},
 
@@ -219,7 +219,7 @@ export const RECIPES = [
    name:'Hummus and veg wrap',
    time:'5 min',tools:'Knife',kcal:'~650 kcal/person',
    diet:'vegan',cooling:'medium',effort:'easy',burners:1,
-   ing:[['Tortilla wraps','1/person'],['Hummus (jarred)','60g/person'],['Cucumber','0.5/person, sliced'],['Carrot','1 small/person, grated'],['Tomato','1/person, sliced'],['Lettuce','1 handful'],['Olive oil','1 tbsp/person'],['Salt & pepper','to taste'],['Optional: olives','4/person']],
+   ing:[['Tortilla wraps','1/person'],['Hummus (jarred)','60g/person'],['Cucumber','0.5/person, sliced'],['Carrot','1 small/person, grated'],['Tomato','1/person, sliced'],['Lettuce','1 handful'],['Olive oil','2 tbsp'],['Salt & pepper','to taste'],['Optional: olives','4/person']],
    steps:['Spread hummus thickly across the centre of the tortilla.','Layer cucumber, grated carrot, tomato, lettuce.','Drizzle olive oil, season with salt and pepper.','Add olives if using. Roll up tightly. Cut diagonally.'],
    tip:'Jarred hummus keeps unopened for weeks. Olive oil adds the calories vegans need. Tahini-rich hummus is best — read the label. Add sundried tomatoes for umami punch.'},
 
@@ -235,7 +235,7 @@ export const RECIPES = [
    name:'Caprese sandwich with basil',
    time:'5 min',tools:'Knife',kcal:'~750 kcal/person',
    diet:'vegetarian',cooling:'medium',effort:'easy',burners:1,
-   ing:[['Sourdough bread','3 slices/person'],['Mozzarella (vacuum-packed)','80g/person'],['Tomato','1/person, thickly sliced'],['Olive oil','2 tbsp/person'],['Balsamic vinegar','1 tbsp/person'],['Mixed dried herbs','1 tsp'],['Salt & pepper','to taste']],
+   ing:[['Sourdough bread','3 slices/person'],['Mozzarella (vacuum-packed)','80g/person'],['Tomato','1/person, thickly sliced'],['Olive oil','4 tbsp'],['Balsamic vinegar','1 tbsp/person'],['Mixed dried herbs','1 tsp'],['Salt & pepper','to taste']],
    steps:['Slice tomato and mozzarella thick.','Drizzle olive oil generously on bread.','Layer mozzarella, tomato, basil. Season with salt and pepper.','Drizzle balsamic vinegar, top with second slice of bread, close.','Press lightly so the layers compact.'],
    tip:'The Italian classic works on the road. Bocconcini balls in brine are a great alternative. Olive oil is the soul of caprese — be generous. Sub balsamic with lemon juice if you didn\'t pack it.'},
 
@@ -243,7 +243,7 @@ export const RECIPES = [
    name:'Mediterranean couscous salad',
    time:'10 min',tools:'1 pot (boil only)',kcal:'~700 kcal/person',
    diet:'vegan',cooling:'low',effort:'easy',burners:1,
-   ing:[['Couscous','80g per person'],['Boiling water','200ml/person'],['Cherry tomatoes','40g/person, diced'],['Cucumber','0.25/person, diced'],['Black olives','6/person, halved'],['Capers','1 tbsp (for both)'],['Chickpeas (canned, drained)','0.5 × 400g can (for both)'],['Olive oil','2 tbsp/person'],['Lemon juice','1 tbsp/person'],['Mixed dried herbs','1 tsp'],['Salt & pepper','to taste']],
+   ing:[['Couscous','80g per person'],['Boiling water','200ml/person'],['Cherry tomatoes','40g/person, diced'],['Cucumber','0.25/person, diced'],['Black olives','6/person, halved'],['Capers','1 tbsp (for both)'],['Chickpeas (canned, drained)','0.5 × 400g can (for both)'],['Olive oil','4 tbsp'],['Lemon juice','1 tbsp/person'],['Mixed dried herbs','1 tsp'],['Salt & pepper','to taste']],
    steps:['Boil water in a pot or kettle. Pour over couscous in a bowl, cover with plate, let stand 5 min.','Fluff couscous with a fork.','Stir in tomato, cucumber, olives, capers, chickpeas.','Drizzle olive oil and lemon juice. Sprinkle oregano. Season.','Toss well. Eat immediately or chill 30 min for better flavour.'],
    tip:'No real cooking needed beyond boiling water. Couscous is the lightest carb to pack. Add feta if you\'re vegetarian (not vegan). Sun-dried tomatoes from a jar add umami.'},
 
@@ -251,7 +251,7 @@ export const RECIPES = [
    name:'Curried chickpea wrap',
    time:'7 min',tools:'Fork',kcal:'~700 kcal/person',
    diet:'vegan',cooling:'low',effort:'easy',burners:1,
-   ing:[['Tortilla wraps','1/person'],['Chickpeas (canned, drained)','0.5 × 400g can (for both)'],['Mango chutney','2 tbsp/person'],['Curry powder','1 tsp/person'],['Olive oil','1 tbsp/person'],['Lemon juice','1 tbsp'],['Lettuce','1 handful'],['Tomato','0.5, diced'],['Salt & pepper','to taste']],
+   ing:[['Tortilla wraps','1/person'],['Chickpeas (canned, drained)','0.5 × 400g can (for both)'],['Mango chutney','2 tbsp/person'],['Curry powder','2 tsp'],['Olive oil','2 tbsp'],['Lemon juice','1 tbsp'],['Lettuce','1 handful'],['Tomato','0.5, diced'],['Salt & pepper','to taste']],
    steps:['Drain chickpeas. Mash roughly with a fork in a bowl — leave some texture.','Mix in mango chutney, curry powder, olive oil, lemon juice. Season.','Spread the mix down the centre of the tortilla.','Top with lettuce and tomato. Roll tightly. Cut diagonally.'],
    tip:'Cold curry wrap — sounds wrong, tastes great. Mango chutney is the secret ingredient: sweet-spicy magic. Use leftover mix on crackers if you skip the tortilla.'},
 
@@ -259,7 +259,7 @@ export const RECIPES = [
    name:'Cheese quesadilla with tomato',
    time:'8 min',tools:'1 pan',kcal:'~700 kcal/person',
    diet:'vegetarian',cooling:'medium',effort:'easy',burners:1,
-   ing:[['Tortilla wraps','2/person'],['Cheese, grated','80g/person'],['Tomato','0.5/person, diced'],['Olive oil','1 tbsp/person'],['Chili flakes','0.5 tsp'],['Salt','to taste'],['Optional: jalapeños','to taste']],
+   ing:[['Tortilla wraps','2/person'],['Cheese, grated','80g/person'],['Tomato','0.5/person, diced'],['Olive oil','2 tbsp'],['Chili flakes','0.5 tsp'],['Salt','to taste'],['Optional: jalapeños','to taste']],
    steps:['Heat dry pan over medium. Place one tortilla, sprinkle cheese, tomato, chili evenly.','Top with second tortilla, press down lightly.','Cook 2–3 min until bottom is golden and cheese starts melting.','Flip carefully (use a plate to help). Cook another 2 min.','Slide onto board, cut into wedges. Salt to taste.'],
    tip:'Easy hot lunch when you need something cooked. Add black beans or salsa for protein. Hot sauce on the side. Works in a dry pan — no oil needed if cheese is fatty.'},
 
@@ -267,7 +267,7 @@ export const RECIPES = [
    name:'Hummus crackers with olives',
    time:'3 min',tools:'None',kcal:'~650 kcal/person',
    diet:'vegan',cooling:'low',effort:'easy',burners:1,
-   ing:[['Crispbread','5/person'],['Hummus (jarred)','80g/person'],['Black olives','6/person'],['Olive oil','1 tbsp/person'],['Almonds','30g/person'],['Dried apricots','3/person'],['Chili flakes','to taste']],
+   ing:[['Crispbread','5/person'],['Hummus (jarred)','80g/person'],['Black olives','6/person'],['Olive oil','2 tbsp'],['Almonds','30g/person'],['Dried apricots','3/person'],['Chili flakes','to taste']],
    steps:['Spread hummus thickly on each crispbread.','Top with olive halves, drizzle olive oil, sprinkle chili flakes.','Serve nuts and dried apricots on the side.','Eat immediately — fully cold lunch.'],
    tip:'Zero-cook lunch — perfect when gas runs low or you\'re packing up camp. Tahini-heavy hummus has more fat = more calories. Sweet apricots balance the savoury.'},
 
@@ -275,7 +275,7 @@ export const RECIPES = [
    name:'Greek salad with pita',
    time:'8 min',tools:'Knife',kcal:'~750 kcal/person',
    diet:'vegetarian',cooling:'medium',effort:'easy',burners:1,
-   ing:[['Feta (vacuum-packed)','100g/person'],['Tomato','1 large/person'],['Cucumber','0.5/person'],['Black olives','6/person'],['Red onion','0.25 (for both), thin rings'],['Olive oil','2 tbsp/person'],['Red wine vinegar','1 tbsp/person'],['Mixed dried herbs','1 tsp'],['Pita bread','2/person'],['Salt & pepper','to taste']],
+   ing:[['Feta (vacuum-packed)','100g/person'],['Tomato','1 large/person'],['Cucumber','0.5/person'],['Black olives','6/person'],['Red onion','0.25 (for both), thin rings'],['Olive oil','4 tbsp'],['Red wine vinegar','1 tbsp/person'],['Mixed dried herbs','1 tsp'],['Pita bread','2/person'],['Salt & pepper','to taste']],
    steps:['Chop tomato and cucumber into rustic chunks (not diced — Greek style).','Slice red onion into thin rings.','Combine in a bowl with olives. Cube the feta and add.','Drizzle olive oil and vinegar, sprinkle oregano. Season. Toss gently.','Toast pita briefly in a dry pan if you have one. Serve alongside.'],
    tip:'Traditional Greek doesn\'t mince — keep it chunky. Feta in vacuum packs keeps for weeks. Use crispbread if no pita. Drizzle extra olive oil at the table for calorie boost.'},
 
@@ -315,7 +315,7 @@ export const RECIPES = [
    name:'Roasted veggie hummus pita',
    time:'20 min',tools:'1 pan',kcal:'~750 kcal/person',
    diet:'vegan',cooling:'low',effort:'easy',burners:1,
-   ing:[['Pita bread','2/person'],['Hummus','100g/person'],['Zucchini','0.5/person, sliced'],['Red capsicum','0.5/person, sliced'],['Eggplant','0.25/person, cubed'],['Red onion','0.25/person, wedges'],['Olive oil','3 tbsp/person'],['Cumin','0.5 tsp'],['Smoked paprika','0.5 tsp'],['Lemon juice','1 tbsp/person'],['Tahini','1 tbsp/person'],['Pine nuts','15g/person'],['Salt & pepper','to taste']],
+   ing:[['Pita bread','2/person'],['Hummus','100g/person'],['Zucchini','0.5/person, sliced'],['Red capsicum','0.5/person, sliced'],['Eggplant','0.25/person, cubed'],['Red onion','0.25/person, wedges'],['Olive oil','6 tbsp'],['Cumin','0.5 tsp'],['Smoked paprika','0.5 tsp'],['Lemon juice','1 tbsp/person'],['Tahini','1 tbsp/person'],['Pine nuts','15g/person'],['Salt & pepper','to taste']],
    steps:['Heat 2 tbsp olive oil in pan over medium-high. Add zucchini, capsicum, eggplant, onion. Toss to coat.','Sprinkle cumin, paprika, salt, pepper. Roast in pan 10–12 min, stirring occasionally, until softened and charred at edges.','Off heat, drizzle with lemon juice and remaining olive oil.','Warm pita briefly in the empty pan 30 sec per side.','Slit pita open, slather inside with hummus and a swirl of tahini.','Stuff with roasted veggies. Sprinkle pine nuts. Eat warm.'],
    tip:'Calorie-loaded vegan lunch that doesn\'t skimp — hummus + tahini + pine nuts + olive oil all stack the calories. Tinned hummus keeps 5 days unopened, 3 once cracked. Add chili flakes if you like heat. Leftover roasted veg = breakfast wrap fuel next day.'},
 
@@ -323,7 +323,7 @@ export const RECIPES = [
    name:'Halloumi & lemon couscous bowl',
    time:'15 min',tools:'1 pot + 1 pan',kcal:'~900 kcal/person',
    diet:'vegetarian',cooling:'medium',effort:'easy',burners:2,
-   ing:[['Halloumi','120g/person, sliced 1cm thick'],['Couscous','80g/person'],['Cherry tomatoes','100g/person, halved'],['Cucumber','0.5/person, diced'],['Red onion','0.25/person, finely diced'],['Mint leaves','small handful'],['Lemon','1/person, zest + juice'],['Olive oil','3 tbsp/person'],['Honey','5ml/person'],['Salt & pepper','to taste']],
+   ing:[['Halloumi','120g/person, sliced 1cm thick'],['Couscous','80g/person'],['Cherry tomatoes','100g/person, halved'],['Cucumber','0.5/person, diced'],['Red onion','0.25/person, finely diced'],['Mint leaves','small handful'],['Lemon','1/person, zest + juice'],['Olive oil','6 tbsp'],['Honey','5ml/person'],['Salt & pepper','to taste']],
    steps:['Burner 1 (pot): Bring 100ml/person water + pinch of salt to boil. Pour over couscous in a bowl, cover, rest 5 min. Fluff with fork.','Burner 2 (pan): Heat dry hot. Add halloumi slices. Sear 1.5 min/side until golden and crisp at edges. Don\'t move too soon — let crust form.','Stir tomatoes, cucumber, red onion, mint, lemon zest, lemon juice, olive oil into the couscous. Salt + pepper.','Plate couscous, top with hot halloumi, drizzle honey over the cheese. Serve.'],
    tip:'Halloumi is the camper\'s best friend — vacuum-packed, keeps weeks, never melts away in the pan. Honey on hot halloumi sounds odd but is a Mediterranean classic — sweet-salty perfection. Couscous needs no real cooking, just hot water — perfect for limited-fuel days.'},
 
@@ -532,7 +532,7 @@ export const RECIPES = [
    name:'Thai green curry feast with crispy tempeh',
    time:'35 min',tools:'2 pans + 1 pot',kcal:'~1100 kcal/person',
    diet:'vegan',cooling:'medium',effort:'medium',burners:3,
-   ing:[['Jasmine rice','150g/person'],['Tempeh','120g/person, sliced'],['Coconut milk (full-fat, canned)','1 × 400ml can/person'],['Curry powder','2 tbsp/person'],['Eggplant','0.25/person, cubed'],['Green beans','100g/person'],['Bamboo shoots (canned, drained)','100g/person'],['Lime leaves','3 leaves'],['Soy sauce','2 tbsp'],['Brown sugar','1 tbsp'],['Lime juice','1 tbsp/person'],['Roasted peanuts','30g/person'],['Coriander leaves','small handful'],['Vegetable oil','4 tbsp'],['Cornflour','2 tbsp'],['Salt','to taste']],
+   ing:[['Jasmine rice','150g/person'],['Tempeh','120g/person, sliced'],['Coconut milk (full-fat, canned)','1 × 400ml can/person'],['Curry powder','4 tbsp'],['Eggplant','0.25/person, cubed'],['Green beans','100g/person'],['Bamboo shoots (canned, drained)','100g/person'],['Lime leaves','3 leaves'],['Soy sauce','2 tbsp'],['Brown sugar','1 tbsp'],['Lime juice','1 tbsp/person'],['Roasted peanuts','30g/person'],['Coriander leaves','small handful'],['Vegetable oil','4 tbsp'],['Cornflour','2 tbsp'],['Salt','to taste']],
    steps:['Burner 1 (pot): Cook jasmine rice — 150g + 1.5× water, boil, cover, low 12 min, rest 5 min.','Burner 2 (pan, deep): Heat 2 tbsp oil. Fry curry paste 1 min until fragrant. Pour in coconut milk, stir to combine.','Add eggplant, simmer 8 min. Add bamboo shoots + snow peas, lime leaves, soy sauce, brown sugar. Simmer 4 min more — veggies tender-crisp.','Burner 3 (pan): Toss tempeh slices in cornflour. Heat 2 tbsp oil hot. Fry tempeh 6 min, turning, until crispy on both sides.','Curry off heat: stir in lime juice, salt to taste.','Build bowls: rice, curry over the top, crispy tempeh slices, peanuts and coriander to finish.'],
    tip:'Coconut milk MUST be full-fat — light coconut breaks and tastes thin. Curry paste varies wildly by brand — start with 1 tbsp, taste, add more. Crispy tempeh on top is the textural payoff. Vegan but every bit as comforting as a chicken curry.'},
 
@@ -548,7 +548,7 @@ export const RECIPES = [
    name:'Coconut dal with basmati rice',
    time:'30 min',tools:'1 pot (sequential)',kcal:'~950 kcal/person',
    diet:'vegan',cooling:'none',effort:'easy',burners:1,
-   ing:[['Red lentils','100g/person'],['Basmati rice','120g/person'],['Coconut milk (full-fat)','200ml/person'],['Onion','1, diced'],['Garlic','4 cloves, minced'],['Ginger','2cm/person, grated'],['Curry powder','1 tsp'],['Cumin','2 tsp'],['Tomato paste','1 tbsp'],['Vegetable stock cube','1'],['Vegetable oil','3 tbsp'],['Lemon juice','1 tbsp/person'],['Coriander leaves','small handful'],['Chili flakes','to taste'],['Salt','to taste']],
+   ing:[['Red lentils','100g/person'],['Basmati rice','120g/person'],['Coconut milk (full-fat)','200ml/person'],['Onion','1, diced'],['Garlic','4 cloves, minced'],['Ginger','4cm, grated'],['Curry powder','1 tsp'],['Cumin','2 tsp'],['Tomato paste','1 tbsp'],['Vegetable stock cube','1'],['Vegetable oil','3 tbsp'],['Lemon juice','1 tbsp/person'],['Coriander leaves','small handful'],['Chili flakes','to taste'],['Salt','to taste']],
    steps:['Cook rice first: rinse basmati, then 120g + 1.5× water in pot. Boil, cover, low 12 min. Rest covered, transfer to a bowl, cover with foil.','Wipe pot. Heat oil over medium. If using mustard seeds, add and let pop 30 sec.','Add onion, fry 4 min until soft. Add garlic + ginger, 1 min more.','Stir in turmeric, cumin, garam masala, chili flakes, tomato paste — toast 1 min.','Add lentils, coconut milk, crumbled stock cube + 400ml water. Bring to simmer, cook uncovered 18 min, stirring occasionally, until lentils break down into a creamy dal.','Lemon juice + salt to taste. Top with coriander.','Serve dal alongside or over the rice.'],
    tip:'One-pot vegan winner — lentils are the cheapest protein on the trip and stretch the budget. Dal thickens overnight in the cooler — leftovers reheat into next-day lunch. Splash extra coconut milk to loosen if it gets too thick. The best version of this gets better the longer it simmers.'},
 
@@ -679,7 +679,7 @@ export const RECIPES = [
    name:'Mediterranean tuna and white bean salad',
    time:'10 min',tools:'1 bowl',kcal:'~650 kcal/person',
    diet:'omnivore',cooling:'low',effort:'easy',burners:0,
-   ing:[['Tuna in oil','185g can/person, drained'],['Cannellini beans (canned)','150g/person, drained'],['Cherry tomatoes','120g/person, halved'],['Red onion','0.25/person, finely diced'],['Cucumber','0.5/person, diced'],['Capers','1 tbsp/person, drained'],['Parsley','small handful'],['Lemon juice','2 tbsp/person'],['Olive oil','3 tbsp/person'],['Dijon mustard','1 tsp/person'],['Garlic','1 clove, minced'],['Salt & pepper','to taste']],
+   ing:[['Tuna in oil','185g can/person, drained'],['Cannellini beans (canned)','150g/person, drained'],['Cherry tomatoes','120g/person, halved'],['Red onion','0.25/person, finely diced'],['Cucumber','0.5/person, diced'],['Capers','1 tbsp/person, drained'],['Parsley','small handful'],['Lemon juice','2 tbsp/person'],['Olive oil','6 tbsp'],['Dijon mustard','1 tsp/person'],['Garlic','1 clove, minced'],['Salt & pepper','to taste']],
    steps:['Drain tuna and beans well. Tip into a large bowl.','Add cherry tomatoes, red onion, cucumber, capers, parsley.','Dressing: whisk olive oil + lemon juice + Dijon + garlic + salt + pepper in a small bowl.','Pour dressing over the salad, toss gently to combine — try not to break up the tuna chunks.','Rest 5 min for flavours to meld. Plate and serve.'],
    tip:'Shelf-stable masterpiece — every ingredient (except cucumber/tomato) keeps for weeks in the camper. Zero burners needed. Naturally gluten-free. Tuna in olive oil > tuna in brine — much more flavour. Sirena and John West both have decent options at Coles. This holds well in a sealed container for 24h — perfect prep-ahead lunch.'},
 
@@ -732,7 +732,7 @@ export const RECIPES = [
    name:'Chicken fajita bowls with avocado crema',
    time:'25 min',tools:'1 pan',kcal:'~900 kcal/person',
    diet:'omnivore',cooling:'high',effort:'easy',burners:1,
-   ing:[['Chicken breast','200g/person, sliced'],['Long-grain rice','80g/person'],['Black beans (canned, drained)','0.25 × 400g can/person'],['Capsicum','1 total/person, sliced'],['Onion','0.5/person, sliced'],['Avocado','0.5/person'],['Sour cream','30g/person'],['Lime','1/person'],['Garlic','3 cloves, minced'],['Smoked paprika','1.5 tsp/person'],['Cumin','1 tsp/person'],['Chili flakes','0.5 tsp/person'],['Olive oil','3 tbsp'],['Coriander leaves','small handful'],['Salt & pepper','to taste']],
+   ing:[['Chicken breast','200g/person, sliced'],['Long-grain rice','80g/person'],['Black beans (canned, drained)','0.25 × 400g can/person'],['Capsicum','1 total/person, sliced'],['Onion','0.5/person, sliced'],['Avocado','0.5/person'],['Sour cream','30g/person'],['Lime','1/person'],['Garlic','3 cloves, minced'],['Smoked paprika','3 tsp'],['Cumin','2 tsp'],['Chili flakes','1 tsp'],['Olive oil','3 tbsp'],['Coriander leaves','small handful'],['Salt & pepper','to taste']],
    steps:['Cook rice first or in parallel if you have 2 burners: 80g rice + 130ml water + pinch of salt per person, boil, low 12 min, rest 10.','Marinade chicken: toss with 1 tbsp olive oil, half the smoked paprika, cumin, chili, garlic, salt, pepper. Rest 5 min.','Heat 2 tbsp oil in pan medium-high. Sear chicken 3 min/side until golden and cooked. Remove.','Same pan: 1 tbsp oil. Add onion + capsicum + remaining spices. Cook 6 min until veggies softened and edges charred. Salt.','Black beans: drain, warm in microwave or in the pan for 1 min with veggies.','Crema: mash avocado in a bowl with sour cream + half a lime\'s juice + salt.','Build bowls: rice base, beans, fajita veggies, sliced chicken on top. Dollop crema, scatter coriander. Lime wedge.'],
    tip:'Naturally gluten-free (skip the tortillas — bowl format). The crema sub: use dairy-free coconut yogurt + mashed avocado for dairy-free version. The smoked paprika is the workhorse spice — don\'t skip. Pre-cooked rice from a packet (e.g. SunRice microwave pouches) saves 15 min on a tired day. Kids love this — let them assemble their own bowl.'},
 
@@ -740,7 +740,7 @@ export const RECIPES = [
    name:'Chana masala with coconut basmati rice',
    time:'30 min',tools:'1 pot + 1 pan',kcal:'~850 kcal/person',
    diet:'vegan',cooling:'low',effort:'easy',burners:2,
-   ing:[['Chickpeas (canned, drained)','0.6 × 400g can/person'],['Basmati rice','90g/person'],['Coconut milk','100ml/person (for rice)'],['Onion','1, diced'],['Garlic','4 cloves, minced'],['Ginger','2cm piece, grated'],['Diced tomatoes (canned)','1 × 400g can (for both)'],['Tomato paste','2 tbsp'],['Curry powder','2 tsp/person'],['Cumin','1 tsp/person'],['Chili flakes','0.5 tsp/person'],['Vegetable oil','3 tbsp'],['Lemon juice','1 tbsp/person'],['Coriander leaves','small handful'],['Salt','to taste']],
+   ing:[['Chickpeas (canned, drained)','0.6 × 400g can/person'],['Basmati rice','90g/person'],['Coconut milk','100ml/person (for rice)'],['Onion','1, diced'],['Garlic','4 cloves, minced'],['Ginger','2cm piece, grated'],['Diced tomatoes (canned)','1 × 400g can (for both)'],['Tomato paste','2 tbsp'],['Curry powder','4 tsp'],['Cumin','2 tsp'],['Chili flakes','1 tsp'],['Vegetable oil','3 tbsp'],['Lemon juice','1 tbsp/person'],['Coriander leaves','small handful'],['Salt','to taste']],
    steps:['Burner 1 (pot): Combine basmati + coconut milk + 150ml water/person + pinch salt. Boil, lid on, low 12 min. Rest 10 min covered. Fluff with fork.','Burner 2 (pan): Heat oil medium-high. Sauté onion 5 min until golden at edges.','Add garlic + ginger, 1 min. Add all spices (garam masala, cumin, coriander, turmeric, chili), toast 30 sec — should smell intensely fragrant.','Stir in tomato paste, 1 min. Pour in diced tomatoes, simmer 5 min until it darkens and oil starts to separate (= properly cooked).','Add chickpeas, 200ml water, salt. Simmer 8 min, mashing some chickpeas with the back of a spoon to thicken the sauce.','Off heat: lemon juice + fresh coriander. Taste, adjust salt.','Serve chana masala over coconut rice.'],
    tip:'The Indian comfort-food classic — vegan, gluten-free, nut-free, soy-free, dairy-free. The trick is TOASTING the spices in oil (Indian "tadka") — raw spices taste flat, toasted ones bloom. Coconut basmati > plain rice for this dish — the sweetness balances the heat. Leftovers are even better next day. Add a swirl of coconut yogurt at the end if you want richness.'},
 
@@ -748,7 +748,7 @@ export const RECIPES = [
    name:'Thai-style vegetable green curry with jasmine rice',
    time:'25 min',tools:'1 pot + 1 pan',kcal:'~800 kcal/person',
    diet:'vegan',cooling:'low',effort:'easy',burners:2,
-   ing:[['Curry powder','3 tbsp/person'],['Coconut milk (full-fat)','400ml/person'],['Jasmine rice','100g/person'],['Firm tofu','150g/person, cubed (optional)'],['Bamboo shoots (canned)','100g/person, drained'],['Green beans','80g/person'],['Red capsicum','0.5/person, sliced'],['Eggplant','0.5/person, chunked'],['Basil','small handful/person'],['Tamari','1.5 tbsp/person'],['Brown sugar','1 tsp/person'],['Vegetable oil','2 tbsp'],['Lime','0.5/person'],['Salt','to taste']],
+   ing:[['Curry powder','6 tbsp'],['Coconut milk (full-fat)','400ml/person'],['Jasmine rice','100g/person'],['Firm tofu','150g/person, cubed (optional)'],['Bamboo shoots (canned)','100g/person, drained'],['Green beans','80g/person'],['Red capsicum','0.5/person, sliced'],['Eggplant','0.5/person, chunked'],['Basil','small handful/person'],['Tamari','1.5 tbsp/person'],['Brown sugar','1 tsp/person'],['Vegetable oil','2 tbsp'],['Lime','0.5/person'],['Salt','to taste']],
    steps:['Burner 1 (pot): Cook jasmine rice — 100g + 150ml water/person. Boil, lid on, low 12 min. Rest 10 covered.','Burner 2 (pan or wok): Heat oil medium. Fry tofu cubes 3 min/side until golden if using. Remove.','Same pan: scoop 3 tbsp of the thick coconut cream from the top of the coconut milk can. Heat until it starts to sizzle. Add curry paste, fry 2 min until intensely aromatic (this is the flavour base — don\'t rush).','Pour in remaining coconut milk. Bring to gentle simmer.','Add eggplant/zucchini + capsicum, simmer 5 min. Add long beans + bamboo shoots, 3 min more.','Add tamari + sugar + tofu. Simmer 2 min. Taste — adjust salt.','Off heat: tear Thai basil in. Squeeze lime over.','Serve over jasmine rice. Extra lime on the side.'],
    tip:'Gluten-free, vegan, nut-free, dairy-free — and one of the great cuisines for restrictive diets. Most Thai curry pastes ARE vegan (check label — some have shrimp paste, e.g. Mae Ploy). Ayam Green Curry Paste at Coles is reliably vegan. Fry the paste in coconut CREAM (not water) first — that\'s how Thai cooks build flavour. Long beans = "snake beans" at Asian grocers, regular green beans are fine.'},
 
@@ -848,7 +848,7 @@ export const RECIPES = [
    name:'Coconut laksa feast with crispy tofu and noodles',
    time:'40 min',tools:'2 pans + 1 pot',kcal:'~1200 kcal/person',
    diet:'vegan',cooling:'low',effort:'medium',burners:2,occasion:'special',
-   ing:[['Firm tofu','200g/person, pressed and cubed'],['Rice noodles','120g/person dry'],['Coconut milk (full-fat)','400ml/person'],['Vegetable stock cube','1 + 400ml water'],['Curry powder','3 tbsp/person'],['Pak choi','1/person, halved'],['Bean sprouts','60g/person'],['Green beans','80g/person, cut into 5cm pieces'],['Fried shallots (for topping)','2 tbsp/person'],['Coriander leaves','small handful/person'],['Lime','1/person, wedged'],['Mint leaves','small handful/person'],['Red chili, sliced','to taste'],['Cornflour','3 tbsp (for tofu coating)'],['Vegetable oil','5 tbsp (for frying tofu)'],['Soy sauce','2 tbsp'],['Sugar','1 tsp'],['Salt','to taste']],
+   ing:[['Firm tofu','200g/person, pressed and cubed'],['Rice noodles','120g/person dry'],['Coconut milk (full-fat)','400ml/person'],['Vegetable stock cube','1 + 400ml water'],['Curry powder','6 tbsp'],['Pak choi','1/person, halved'],['Bean sprouts','60g/person'],['Green beans','80g/person, cut into 5cm pieces'],['Fried shallots (for topping)','2 tbsp/person'],['Coriander leaves','small handful/person'],['Lime','1/person, wedged'],['Mint leaves','small handful/person'],['Red chili, sliced','to taste'],['Cornflour','3 tbsp (for tofu coating)'],['Vegetable oil','5 tbsp (for frying tofu)'],['Soy sauce','2 tbsp'],['Sugar','1 tsp'],['Salt','to taste']],
    steps:['Press tofu firmly (wrap in towel, weight with pot, 10 min). Cube. Toss in cornflour + salt — full coverage.','Burner 1 (deep pan, hot): Heat 5 tbsp oil. Fry tofu cubes in batches 3 min/side until deeply golden and crispy on all sides. Drain on paper. KEY: don\'t crowd or it steams.','Burner 2 (pot): Same pot does noodles + laksa. First boil water, cook noodles per pack (usually 4 min). Drain, rinse cold, set aside.','Wipe pot, return to burner. Heat 1 tbsp of the tofu oil. Add laksa paste, fry 2 min until intensely fragrant — toasting the paste is the flavour foundation.','Pour in coconut milk + stock + sugar + soy. Bring to gentle simmer, 5 min — should reduce slightly and turn rich orange-red.','Add green beans, simmer 3 min. Add bok choy, 2 min more — still has crunch.','Build the bowls: noodles at bottom, ladle laksa broth over (drown them generously), pile crispy tofu on top, then bean sprouts, fried shallots, coriander, mint, chili. Lime wedge on the side.','Slurp loudly — that\'s the test of a good laksa.'],
    tip:'Malaysian street-food feast for the campsite. Vegan laksa is one of the great cuisines for plant-based travel — coconut + laksa paste is already vegan in most brands (check label). The crispy tofu carries the dish — pressing it properly + cornflour crust is non-negotiable, soggy tofu kills it. Fried shallots in a jar (Coles Asian aisle) are the cheat-code topping. Adjust spice with the laksa paste — 3 tbsp is medium, 4 is fiery.'}
 ];

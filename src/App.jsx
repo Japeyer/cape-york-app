@@ -512,6 +512,7 @@ export default function App() {
           <RecipesTab
             plan={result.plan}
             persons={result.config.persons}
+            factor={result.config.groupFactor}
             focusRecipeId={recipeFocus}
             onFocusHandled={() => setRecipeFocus(null)}
             userRecipes={userRecipes}

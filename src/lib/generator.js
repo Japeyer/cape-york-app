@@ -763,12 +763,179 @@ export function parseAmount(amtStr) {
 
 // ── 4. Mengen-Aggregation ──────────────────────────────────────
 
-// `factor` ist ein reeller Skalar (groupFactor): 1.0 = "1 adult medium", 2.0 = bisheriges 2-Personen-Default.
-// "/person"-Mengen × Group-Faktor; "(for both)"-Mengen × Faktor/2; sonst pro-Rezept ×1.
-export function scaleFactor(parsed, factor) {
+// Basis-Portionen des eingebauten Pools. Die 97 Rezepte wurden für den 2-Personen-Eigen-Trip
+// geschrieben: eine unmarkierte Menge ("1 × 400ml can", "3 cloves", "1 large") meint IMMER
+// "für 2 Personen". Der "(for both)"-Marker sagt dasselbe explizit — er steht nur auf 45 von
+// 448 unmarkierten Zeilen, deshalb ist die Basis der Default und nicht der Marker.
+export const BASE_SERVINGS = 2
+
+// Zutaten, die NICHT linear mit der Gruppengröße wachsen:
+//  - Trockengewürze (das Ultra-Minimal-Kit): Aroma sättigt. Doppelte Menge = doppelt so scharf,
+//    nicht doppelt so gut.
+//  - Aromaten (Knoblauch, Ingwer, frischer Chili): dieselbe Sättigung. Sie werden mitgekocht und
+//    nicht als Gemüse gegessen. Entwickler-Report: "für 7 Personen würde ich nicht 11 Knoblauch-
+//    zehen in Fajitas machen" — linear wären es genau die 11 gewesen.
+//  - Bratfett: skaliert mit der Pfannenfläche, nicht mit den Portionen — 2 tbsp fetten dieselbe
+//    Pfanne ein, egal ob 2 oder 4 Portionen darin landen.
+//
+// NICHT hier drin, obwohl naheliegend:
+//  - Zwiebeln / Frühlingszwiebeln: in vielen Rezepten Gemüse-BESTANDTEIL, nicht nur Aroma-Basis
+//    (a46 Fajitas: "0.5/person, sliced" — die isst man). Dämpfen würde dort zu wenig liefern.
+//  - Sojasauce, Mayo, Senf, Tomatenmark: liegen in derselben Kategorie "🫙 Spices, oils & sauces"
+//    und tragen dieselbe Einheit (tbsp) wie das Öl, skalieren aber sehr wohl linear.
+// Deshalb eine enge, namentliche Liste statt einer Kategorie- oder Einheiten-Regel.
+//
+// Kalibrierung deckt sich mit der Kochliteratur (Escoffier; gängige Scaling-Faustregeln):
+// beim Verdoppeln ~1.5× Gewürz statt 2× → dampen(2) = 1.5 ✓; "1 TL Salz für 2 Portionen braucht
+// bei 8 Portionen 2.5–3, nicht 4" → dampen(4) = 2.5 ✓; Knoblauch ~75% der linearen Menge.
+// (Rezeptportale wie Swissmilk skalieren strikt linear — aber nur über ±1 Portion um die Basis,
+// also max. 1.25×. Dort ist linear unproblematisch; diese App geht von Basis 2 auf bis zu 8.)
+//
+// Die Liste geht bewusst ÜBER das aktuelle Ultra-Minimal-Kit (ae) hinaus: sie deckt auch Gewürze
+// ab, die der Pool derzeit NICHT führt (Turmeric, Garam masala, Zimt, Cayenne …). Sonst rutschte
+// genau der gemeldete Bug-Typ zurück, sobald jemand ein Rezept mit so einem Gewürz ergänzt — die
+// Dämpfung muss VORWÄRTS robust sein, nicht nur den Ist-Pool abdecken.
+// "ground …"/"dried …"-Präfixe fangen die üblichen Schreibvarianten ("Ground cumin", "Dried
+// oregano"); FRISCHE Blätter (bloßes "Basil", "Oregano", "Coriander leaves") bleiben bewusst
+// draußen und skalieren linear — die werden gegessen/als Garnitur genutzt, nicht als Streuwürze.
+const DAMPED_RX = new RegExp(
+  '^(?:' +
+    // Trockengewürze — Kit (ae) + plausible Erweiterungen
+    'salt|black pepper|white pepper|salt & pepper|cumin|smoked paprika|paprika|' +
+    'chili flakes|chilli flakes|chili powder|chilli powder|curry powder|curry paste|' +
+    'mixed dried herbs|mixed herbs|turmeric|garam masala|cayenne|cinnamon|nutmeg|' +
+    'cardamom|allspice|' +
+    'ground (?:cumin|coriander|ginger|turmeric|cinnamon|paprika)|' +
+    'dried (?:herbs|oregano|thyme|basil|rosemary|sage|mint|coriander|parsley|mixed herbs)|' +
+    // Bratfett
+    'olive oil|vegetable oil|coconut oil|canola oil|sunflower oil|oil|' +
+    // Aromaten (mitgekocht, nicht als Gemüse gegessen)
+    'garlic|ginger|red chili|green chili|chili pepper' +
+  ')\\b', 'i')
+
+// Gegenprobe zu DAMPED_RX: "Garlic bread" / "Ginger beer" / "Cinnamon roll" sind Lebensmittel,
+// keine Aromen/Gewürze — die skalieren linear. Kommen im aktuellen Pool nicht als ZUTAT vor (nur
+// in Rezeptnamen), wären aber jederzeit plausibel und würden sonst still zu wenig eingekauft.
+const DAMPED_NOT_RX = /^(?:(?:garlic|ginger)\s+(?:bread|toast|naan|roll|bun|beer|ale|cake|biscuits?|cookies?)|cinnamon\s+(?:roll|bun|swirl|scroll|cereal|toast crunch))\b/i
+
+// Halb-lineare Dämpfung: die Hälfte der linearen Steigerung.
+//   r = Gruppen-Verhältnis zur Basis. 1 Pers → ×0.75 · 2 Pers → ×1 · 4 Pers → ×1.5 · 8 Pers → ×2.5
+function dampen(r) {
+  return 1 + (r - 1) * 0.5
+}
+
+// `factor` ist ein reeller Skalar (groupFactor): 1.0 = "1 adult medium", 2.0 = 2-Personen-Basis.
+//   "/person"-Menge      → × Faktor (Autor hat die Pro-Person-Menge explizit angegeben)
+//   sonst (inkl. "for both") → × Faktor/BASE_SERVINGS, gedämpft bei Gewürzen/Bratfett
+// `name` ist der Zutatenname und entscheidet über die Dämpfung; ohne ihn wird linear skaliert.
+export function isDamped(name) {
+  const n = String(name || '').trim()
+  return DAMPED_RX.test(n) && !DAMPED_NOT_RX.test(n)
+}
+
+export function scaleFactor(parsed, factor, name = '') {
   if (parsed.perPerson) return factor
-  if (parsed.forTwo)    return factor / 2
-  return 1
+  const r = factor / BASE_SERVINGS
+  if (isDamped(name)) return dampen(r)
+  return r
+}
+
+// ── 4b. Mengen-Anzeige im Rezept (skaliert auf die Gruppe) ─────
+//
+// Die Rezept-Ansicht zeigte bisher den ROHEN Mengen-String unter der Überschrift "Ingredients for
+// N people" — also "1 × 400ml can", egal ob 2 oder 8 Personen. scaleAmountLabel() rechnet den
+// String auf die Gruppe um und behält dabei die Freitext-Annotationen ("— important!", ", warmed").
+//
+// Die Strings sind Freitext, und eine zweite Zahl darin bedeutet dreierlei — je nach Muster:
+//   "1 × 400ml can"          400 = Gebinde-GRÖSSE      → skaliert NICHT (die Anzahl davor tut es)
+//   "150g/person, cut 2cm"     2 = Schnittmaß           → skaliert NICHT
+//   "1 + 400ml water"        400 = Kochwasser           → skaliert MIT
+//   "1 tbsp (20g)/person"     20 = Gramm-Gloss der Menge → skaliert MIT
+// Deshalb wird gezielt ersetzt statt pauschal jede Zahl.
+
+// Marker entfernen: die angezeigte Menge ist nach der Skalierung absolut für die Gruppe, ein
+// stehengebliebenes "/person" würde sie erneut multiplizieren lassen. "for both" auch mitten im
+// Satz greifen ("20g (for both, rehydrate in 250ml water)" → "20g (rehydrate in 250ml water)").
+const MARKER_RX = /\s*\(\s*for both\s*\)|\s*\bfor both\b\s*,?\s*|\s*\/person\b|\s*\bper person\b/gi
+
+// Rundet auf am Campingkocher abmessbare Werte — pro Einheiten-Klasse verschieden.
+//
+// Nötig, weil groupFactor fast nie glatt ist: 5 Erwachsene = 5.05 (Mann 1.05 + Frau 0.95), nicht
+// 5.0. Ohne Rundung stünde da "758g Red lentils" statt "760g" — Scheingenauigkeit, die niemand
+// abwiegt und die das Vertrauen in die Zahl untergräbt.
+//
+// Die Rundung ist NUR Anzeige. Die Einkaufsliste rechnet auf den ungerundeten Werten weiter
+// (aggregateParts) und rundet erst am Ende auf ganze Gebinde — hier wird also nichts verfälscht.
+const roundTo = (q, step) => Math.round(q / step) * step
+
+export function roundAmount(q, unit) {
+  const cls = unitClass(unit)
+
+  // Masse/Volumen: grober werden, je größer der Wert. 758 → 760 · 1058 → 1050 · 152 → 150
+  if (cls === 'mass' || cls === 'volume') {
+    if (q < 10)   return roundTo(q, 1)
+    if (q < 100)  return roundTo(q, 5)
+    if (q < 1000) return roundTo(q, 10)
+    return roundTo(q, 50)
+  }
+
+  // Löffel: Viertelschritte sind mit einem Messlöffel-Set abmessbar ("2.75 tsp" geht).
+  if (cls === 'spice') return roundTo(q, 0.25)
+
+  // Gebinde (Dosen, Packungen): ab 3 halbe Dosen ("3.5 cans" = 4 öffnen, letzte halb),
+  // darunter Viertel — ein 0.5er-Raster würde "0.6 can" auf 0.5 ABrunden und damit beim
+  // Wachsen der Gruppe die Menge sinken lassen.
+  if (CONTAINER_RX.test(String(unit || ''))) return q >= 3 ? roundTo(q, 0.5) : roundTo(q, 0.25)
+
+  // Zählbares (Zwiebeln, Zehen, Scheiben, Handvoll): ab 3 ganze Stücke — "7.5 cloves" ist
+  // Scheingenauigkeit, "8 cloves" ist die Anweisung. Darunter Viertel, weil "0.25 Zwiebel"
+  // oder "0.5 Avocado" echte, übliche Küchenmengen sind und im Pool auch so stehen.
+  return q >= 3 ? roundTo(q, 1) : roundTo(q, 0.25)
+}
+
+export function scaleAmountLabel(amtStr, factor, name = '') {
+  const raw = String(amtStr || '').trim()
+  const strip = s => s
+    .replace(MARKER_RX, ' ')
+    .replace(/\(\s*,?\s*/g, '(')      // "( rehydrate …" / "(, warmed" → "(rehydrate …"
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.)])/g, '$1')
+    .trim()
+
+  const parsed = parseAmount(raw)
+  // Keine Zahl → nichts zu rechnen. "to taste" / "small handful/person" bleiben wörtlich stehen:
+  // "pro Person eine kleine Handvoll" ist bereits die richtige Anweisung für jede Gruppengröße.
+  if (parsed.qty == null) return raw
+  const mult = scaleFactor(parsed, factor, name)
+  if (mult === 1) return strip(raw)
+
+  const qty = roundAmount(parsed.qty * mult, parsed.unit)
+  const numMatch = raw.match(NUM_RX)
+  const afterNum = raw.slice(numMatch.index + numMatch[0].length)
+
+  // Gebinde-Wort an die neue Anzahl angleichen ("2 can" → "2 cans"). Nur Container-Wörter, denn
+  // die stehen nie für eine Größe — im Gegensatz zu "ml" in "2 × 400ml can".
+  const fixPlural = s => parsed.unit && CONTAINER_RX.test(parsed.unit)
+    ? s.replace(CONTAINER_RX, pluralize(parsed.unit, qty))
+    : s
+
+  // Gebinde-Größe zuerst ("185g can/person"): die ANZAHL steht gar nicht im String, parseAmount
+  // hat implizit 1 angenommen. Also die skalierte Anzahl voranstellen statt die Größe zu ersetzen.
+  const implicitCount = CONTAINER_RX.test(afterNum)
+    && /^\s*(?:g|kg|ml|l)\b/i.test(afterNum)
+    && !/(\d+(?:\.\d+)?)\s*[×x*]\s*\d/.test(raw)
+  if (implicitCount) return strip(fixPlural(`${roundAmount(parsed.qty * mult, parsed.unit)} × ${raw}`))
+
+  // Primärzahl ersetzen (erste Zahl = die Menge; Größen wie "400ml" stehen immer dahinter).
+  let out = raw.slice(0, numMatch.index) + qty + afterNum
+  // Kochwasser mitskalieren: "1 + 400ml water" → "2 + 800ml water". "1 + 2× rice water" bleibt,
+  // weil dort ein Verhältnis und keine Volumen-Einheit steht.
+  out = out.replace(/\+\s*(\d+(?:\.\d+)?)\s*(ml|l)\b/gi, (m, q, u) => `+ ${roundAmount(Number(q) * mult, u)}${u}`)
+  // Masse-/Volumen-Gloss in Klammern mitskalieren — er glossiert immer die Primärmenge, nie die
+  // Einheit: "1 tbsp (20g)/person" → "4 tbsp (80g)" · "45g/person (25g mash, 20g sear)" → ×4.
+  out = out.replace(/\(([^)]*)\)/g, (m, inner) =>
+    '(' + inner.replace(/(\d+(?:\.\d+)?)\s*(g|kg|ml|l)\b/gi, (mm, q, u) => `${roundAmount(Number(q) * mult, u)}${u}`) + ')')
+  return strip(fixPlural(out))
 }
 
 export function unitClass(unit) {
@@ -997,7 +1164,7 @@ function generateShopping({ plan, factor: groupF, freshStops }) {
         if (usedIng && !usedIng.includes(idx)) continue
         if (!isShoppableIngredient(ingName)) continue
         const parsed = parseAmount(ingAmt)
-        const factor = scaleFactor(parsed, groupF) * batch
+        const factor = scaleFactor(parsed, groupF, ingName) * batch
         const cat = categorize(ingName)
         const target = FRESH_CATEGORIES.has(cat) ? freshTargetFor(dnum) : 'cairns'
 

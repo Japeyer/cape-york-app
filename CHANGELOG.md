@@ -5,6 +5,215 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-16 (az) — Skalierung erschöpfend verifiziert + Dämpfung vorwärts-robust (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Wende die Skalierungslogik auf alle Rezepte an, sodass es zu 100%
+stimmt und nirgends zu Bugs oder ungewollten Resultaten kommt."
+
+**Ausgangslage:** Die Logik lief bereits über alle Rezepte (sie sitzt im Generator). Aufgabe war
+also der erschöpfende Nachweis + das Schließen jeder Daten-/Robustheits-Lücke.
+
+**Systematischer Audit über alle 97 Rezepte (Klassifikation nach Kategorie + Marker):**
+- **Keine fehlende `/person`-Markierung bei Hauptzutaten** — die 12 geflaggten protein/carb-Zeilen
+  ohne `/person` waren alle Fehlklassifikationen (Fischsauce, Brühwürfel, Mehl, „für 2" korrekt).
+- **Keine Fehl-Dämpfung** — 0 Saucen/Proteine/Carbs fälschlich gedämpft.
+- **Kein Trockengewürz umgeht die Dämpfung** — alle tsp/tbsp-Zutaten sind entweder gedämpft oder
+  eine echte Sauce/Zutat (Kapern, Petersilie, Mango chutney → zu Recht linear). Frische Blätter
+  („Basil", „Coriander leaves") bleiben korrekt linear, nur die Trockenform wird gedämpft.
+- **„8P viel"-Fälle geprüft** (Erdnussbutter 24 tbsp, Mayo, Tahini, Chia bei 8 Personen): alles
+  korrekt — echte Pro-Person-Zutaten, kein Gewürz. Gedämpftes Öl/Curry startet nur von hoher Basis.
+- **Brühwürfel:** „1" (für 2) → 0.5 bei 1 Person, 4 bei 8 — halber Würfel ist am Camp abbrechbar, ok.
+
+**Latenter Mangel gefunden + geschlossen (Vorwärts-Robustheit):**
+`DAMPED_RX` deckte nur das aktuelle Ultra-Minimal-Kit (ae). Ein NEUES Rezept mit „Turmeric",
+„Garam masala", „Zimt" wäre ungedämpft linear skaliert — **exakt die Bug-Klasse des Knoblauch-
+Reports**. `DAMPED_RX` als `RegExp` neu aufgebaut, deckt jetzt auch pool-fremde Trockengewürze +
+`ground …`/`dried …`-Schreibvarianten ab. Kritisch abgesichert: **`ground (?:cumin|coriander|…)`
+fängt NUR Gewürze — „Ground beef/pork/lamb" bleibt linear** (empirisch geprüft). Mehrdeutige
+Kräuter (bloßes „Oregano"/„Basil"/„Thyme") bleiben linear — nur die „Dried"-Form wird gedämpft.
+`DAMPED_NOT_RX` um „Cinnamon roll" erweitert (Zimt-Gebäck ≠ Gewürz).
+
+**Neuer `isDamped()`-Vorwärts-Schutz (3 Tests):** bekannte Trockengewürze/Aromaten/Fette MÜSSEN
+gedämpft sein, frische Blätter/Gemüse/Fleisch/Saucen/Aroma-Lebensmittel NICHT, und jede tsp/tbsp-
+Zutat im Pool ist entweder gedämpft oder eine bekannte lineare Zutat. Fügt jemand künftig ein
+Rezept mit ungedämpftem Gewürz hinzu, schlägt der Test an — statt still den Bug zurückzuholen.
+
+**Verifikation:**
+- **Gedämpfter Ist-Pool unverändert: exakt dieselben 17 Namen** — die Regex-Erweiterung greift nur
+  für hypothetische künftige Gewürze, ändert am aktuellen Pool nichts.
+- **2-Personen-Einkaufsliste bit-identisch zum Ursprung** (190 Zeilen, `git stash`-Diff über ALLE
+  Änderungen). Eigen-Trip unverändert.
+- **Vollaudit: 16.254 Anzeige-Skalierungen (97 × 18 Faktoren) + Einkaufsliste über 9 Gruppen
+  (1–8 + gemischt mit Kindern), alle Invarianten sauber** — kaputte Ausgaben, exakter Round-Trip,
+  Einheiten-Drift, Monotonie, negative Mengen: je 0.
+- **346 Tests grün** (342 + 4). Build grün.
+
+**Fazit:** Kein Bug im Ist-Pool gefunden — (ax)+(ay) hatten die Substanz schon korrekt gemacht.
+Diese Runde ist der erschöpfende Beweis + die Vorwärts-Absicherung, damit künftige Rezepte die
+Skalierung nicht still brechen können.
+
+## 2026-07-16 (ay) — Aromaten dämpfen + `/person`-Gewürze normalisieren (Branch `fresh-start`)
+
+**Anlass (der Entwickler, Live-Test der (ax)-Skalierung):** „Gewisse Sachen wie Knoblauch machen
+keinen Sinn — für 7 Personen würde ich nicht 11 Knoblauchzehen in Fajitas machen, ebenso wenig
+10.75 Esslöffel Paprika. Recherchiere, wie richtige Rezepte skaliert werden, z.B. Swissmilk."
+
+**Recherche:** Swissmilk-Bundle (Nuxt) heruntergeladen und die Rechenlogik gelesen — sie skalieren
+**strikt linear** (`multiplier = amount / initialAmount`, `value * multiplier`, 0 Ausnahmen für
+Knoblauch/Gewürz). ABER: Swissmilk bietet nur **±1 Portion** um die Basis (3/4/5), also max. 1.25× —
+da ist linear unproblematisch. Diese App geht von Basis 2 auf 1–8 Personen (bis 4×), genau dort
+bricht linear. Kochliteratur (Escoffier; gängige Scaling-Guides) bestätigt die Dämpfung mit Zahlen:
+beim Verdoppeln ~1.5× Gewürz, „1 TL Salz für 2 → bei 8 nur 2.5–3, nicht 4", Knoblauch ~75%. Die
+`dampen()`-Formel aus (ax) trifft das exakt (`dampen(2)=1.5`, `dampen(4)=2.5`) — falsch war nur ihre
+**Reichweite**.
+
+**Zwei Bugs gefunden, beide der Grund für die krummen Fajita-Mengen:**
+1. **Aromaten fehlten in der Dämpfungsliste.** Knoblauch (43 Zeilen), Ingwer (4), frischer Chili (2)
+   skalierten linear → `3 cloves` × 3.525 = 11 Zehen bei 7 Personen.
+2. **`/person` auf Gewürzen umging die Dämpfung.** War eine bewusste (ax)-Regel („Autor-Absicht
+   gewinnt") — aber falsch: Gewürze gehören PRO GERICHT, nicht pro Person. a46 „Smoked paprika,
+   1.5 tsp/person" → linear → 10.5 TL. 22 Zeilen betroffen (Öl, Curry, Cumin, Paprika, Chili, Ingwer).
+
+**Fix (Entscheidungen mit dem Entwickler via AskUserQuestion):**
+- **`DAMPED_RX` um Aromaten erweitert:** `garlic|ginger|red chili|green chili|chili pepper`. Zwiebeln
+  bewusst NICHT — sie sind in vielen Gerichten Gemüse-Bestandteil (a46 Fajitas: „0.5/person, sliced"
+  — die isst man), Dämpfen würde zu wenig liefern. 13 → 17 gedämpfte Zutaten-Namen.
+- **Neu `DAMPED_NOT_RX` + `isDamped()`:** Gegenprobe, damit „Garlic bread"/„Ginger beer" (Lebensmittel,
+  kein Aroma) linear bleiben. Kommen aktuell nicht als Zutat vor, wären aber jederzeit plausibel.
+- **Neues Skript `scripts/normalize-spice-scaling.mjs`** (Dry-Run + `--write`, wie normalize-recipes
+  aus (ar)): stellt die 22 `/person`-Gewürze auf Pro-Gericht-Mengen um (× BASE_SERVINGS), Marker
+  entfernt, Annotationen erhalten (`2cm/person, grated` → `4cm, grated`). Trifft NUR gedämpfte
+  Zutaten — Sojasauce/Mayo/Tahini (8 Zeilen) behalten ihr `/person` und skalieren zu Recht linear.
+
+**Ergebnis a46 Fajitas bei 7 Personen:** Knoblauch 11 → **7 Zehen**, Paprika 10.5 → **6.75 tsp**,
+Chili 3.5 → **2.25 tsp**; Hähnchen (1400g), Reis (560g), Peperoni (7), Zwiebeln (4) skalieren weiter
+linear.
+
+**Verifikation:**
+- **2-Personen-Einkaufsliste bit-identisch zum URSPRUNGSZUSTAND** (190 Zeilen, `git stash`-Diff über
+  ALLE Änderungen inkl. der 22 Datenzeilen): `1.5 tsp/person × 2 = 3 tsp`, Dämpfung bei Basis neutral.
+  Eigen-Trip unverändert.
+- **Vollaudit 97 Rezepte × 18 realistische Faktoren = 16.254 Skalierungen, 4 Invarianten sauber**
+  (kaputte Ausgaben · exakter Round-Trip · Einheiten-Drift · Monotonie).
+- **342 Tests grün** (337 + 5: Aromaten gedämpft, Zwiebeln linear, DAMPED_NOT_RX, kein `/person` mehr
+  auf Gewürzen, a46-Regressionstest). Build grün.
+
+**Quellen:** Swissmilk `IngredientsCalculator` (Nuxt-Bundle, client-seitig, linear); Escoffier
+„Cooking for a Crowd"; gängige Recipe-Scaling-Guides (Knoblauch ~75%, Gewürz ~1.5× beim Verdoppeln).
+
+## 2026-07-15 (ax) — Rezept-Mengen skalieren mit der Gruppengröße (Branch `fresh-start`)
+
+**Anlass (der Entwickler, aus der Praxis):** „Habe heute die Red lentil soup für 4 Personen gekocht
+und gemerkt, dass sowohl für 2 als auch für 4 Personen die gleiche Menge Kokosmilch verwendet wird."
+
+**Zwei getrennte Bugs — der zweite war der größere:**
+
+1. **Rezept-Ansicht zeigte rohe Strings.** `RecipesTab.jsx` rendert die Überschrift „Ingredients for
+   N people" und darunter `recipe.ing[i][1]` **unverändert**. Nichts wurde skaliert, auch
+   `150g/person` nicht. Die Überschrift log also bei jeder Gruppengröße ≠ 2.
+2. **Generator skalierte 44% aller Zutaten nie.** `scaleFactor()` gab für jede Menge ohne
+   `/person`- oder `(for both)`-Marker **×1** zurück — **448 von 1022 Zutaten-Zeilen**. Betraf nicht
+   nur die Anzeige, sondern **Einkaufsliste und Stock-Tab**: zu wenig eingekauft.
+
+**Root Cause:** Daten-Schulden. Der Pool wurde für den 2-Personen-Eigen-Trip geschrieben; eine
+unmarkierte Menge (`1 × 400ml can`) meint implizit „für 2 Personen". Der `(for both)`-Marker belegt
+die Konvention, wurde aber nur auf 45 der 448 Zeilen gesetzt. `scaleFactor` behandelte den Rest so,
+als sei er gruppenunabhängig.
+
+**Entscheidung (mit dem Entwickler abgestimmt):**
+- **Basis-Portionen als Konstante** (`BASE_SERVINGS = 2`) statt Daten-Normalisierung der 448 Strings
+  oder eines `serves`-Felds pro Rezept. Der Entwickler: „rein theoretisch müssten die Rezepte ja
+  linear skalierbar sein, 1 Person 0.5 can, 4 Personen 2 cans — der User sollte so wenig wie möglich
+  selbst machen." → keine neue Pflicht für Daten-Autoren, kein String-Churn.
+- **Gewürze + Bratfett halb-linear gedämpft** (`dampen(r) = 1 + (r-1)*0.5`), auf Einwand des
+  Entwicklers: „Gewürze und Öl skalieren normalerweise nicht linear, werden z.B. nur für das
+  Einfetten der Pfanne verwendet." 4 Pers. ×1.5 statt ×2, 8 Pers. ×2.5 statt ×4.
+- **Dämpfung an einer namentlichen Zutatenliste** (`DAMPED_RX`), NICHT an Einheit oder Kategorie.
+  Audit zeigte: die 309 tsp/tbsp-Zeilen sind kein homogener „Gewürz"-Bucket — darin liegen auch
+  Tomatenmark (13×), Cornflour, Backpulver, Brauner Zucker, Chia. Eine Unit-Regel hätte die kaputt
+  gemacht. Ebenso die Kategorie `🫙 Spices, oils & sauces`: enthält Sojasauce/Mayo/Senf (linear).
+  Bereits `/person`-markierte Mengen schlagen die Dämpfung (Autor-Absicht gewinnt).
+
+**Umsetzung:**
+- `generator.js`: `BASE_SERVINGS`, `DAMPED_RX`, `dampen()`; `scaleFactor(parsed, factor, name)` —
+  neuer 3. Parameter, `return 1` → `return r`. `forTwo`-Zweig entfällt (unmarkiert ist jetzt identisch).
+- `generator.js`: neue **`scaleAmountLabel(amt, factor, name)`** für die Anzeige. Die Strings sind
+  Freitext, und eine zweite Zahl bedeutet dreierlei — deshalb gezielte statt pauschaler Ersetzung:
+  Gebinde-Größe (`1 × 400ml can` → 400 bleibt), Schnittmaß (`sliced 1cm thick` → bleibt),
+  Kochwasser (`1 + 400ml water` → skaliert mit), Gramm-Gloss (`1 tbsp (20g)/person` → skaliert mit).
+  Marker werden entfernt (ein stehendes „/person" würde den Nutzer erneut multiplizieren lassen);
+  Freitext-Annotationen (`— important!`, `, warmed`) überleben; Gebinde-Plural wird angeglichen.
+  Mengen ohne Zahl (`to taste`, `small handful/person`) bleiben bewusst wörtlich — bereits korrekt.
+- `inventory.js`: `addAmount` bekommt `ingName` durchgereicht. **Nötig, sonst Drift:** Verbrauch
+  linear, Einkauf gedämpft → der Stock-Tab hätte Öl fälschlich als aufgebraucht gemeldet.
+- `RecipesTab.jsx`: neuer `factor`-Prop (Default `BASE_SERVINGS`), an alle 3 `RecipeCard`-Stellen
+  durchgereicht, Zutaten-Zeile rendert `scaleAmountLabel`. **Skaliert mit `groupFactor`, nicht mit
+  `persons`** — sonst wiche die Rezept-Ansicht von der Einkaufsliste ab (die rechnet mit groupFactor,
+  der Appetit/Alter berücksichtigt). `App.jsx` reicht `factor={result.config.groupFactor}` durch.
+- `RecipesTab.jsx` + `strings.js` + `App.css`: Hinweis `S.recipes.editor.ingHint` im Rezept-Editor.
+  **Verhaltensänderung für eigene Rezepte:** ein getipptes „1 can" bedeutete vorher „immer 1 Dose",
+  jetzt „1 Dose für 2 Personen". Ohne Hinweis müsste der Nutzer die Konvention raten.
+
+**Nachgezogen: einheiten-bewusste Rundung (`roundAmount(q, unit)`, exportiert).**
+Auf Nachfrage des Entwicklers („geh sicher, dass die Mengen für eine beliebige Anzahl Personen
+stimmen, auch 5 oder 7") wurden alle 97 Rezepte × 35 realistische Faktoren geprüft. Befund: die
+Skalierung stimmte, aber die **Rundung erzeugte Scheingenauigkeit**. Ursache: `groupFactor` ist
+fast nie glatt — **5 Erwachsene = 5.05** (Mann 1.05 + Frau 0.95), 7 = 7.05. Die erste Fassung
+(`≥10 → ganze Zahl, sonst Viertel`) lieferte **465× krumme Masse** („758g Red lentils", „1058g",
+„152ml Honey") und **264× Bruchteile bei Zählbarem** („7.5 cloves", „2.5 Brühwürfel").
+Neue Stufen je Einheiten-Klasse: Masse/Volumen `<10→1 · <100→5 · <1000→10 · sonst 50`;
+Löffel `0.25`; Gebinde `≥3→0.5, sonst 0.25`; Zählbares `≥3→ganz, sonst 0.25`.
+→ „760g" · „8 cloves" · „2.5 × 400ml cans" · „2.5 + 1000ml water".
+Zwei Feinheiten, die der Audit erzwang: (1) **Gebinde unter 3 auf Viertel, nicht Halbe** — ein
+0.5er-Raster rundete `0.6 can` (a47) auf `0.5` ab, die Menge sank also während die Gruppe wuchs;
+(2) **Zählbares unter 3 auf Viertel** — `0.25 Zwiebel` steht so im Pool und ist eine normale
+Küchenmenge, ein 0.5er-Raster hätte sie verdoppelt.
+Bei `mult === 1` (Gruppe == Basis) gibt `scaleAmountLabel` bewusst den **ungerundeten Rohstring**
+zurück: „125g/person" bei 1 Person muss 125g bleiben, nicht auf 130g gerundet werden.
+
+**Verifikation:**
+- **2-Personen-Einkaufsliste bit-identisch** zu vorher (190 Zeilen, `git stash`-Diff): bei factor 2
+  ist r = 1, `dampen(1)` = 1 → alle Faktoren unverändert. Der Eigen-Trip bleibt exakt wie geplant.
+  Nach der Rundungs-Änderung erneut geprüft — weiterhin identisch (Rundung ist reine Anzeige).
+- **Vollaudit: 97 Rezepte × 35 realistische Faktoren = 31.605 Skalierungen, 5 Invarianten sauber:**
+  keine kaputten Ausgaben · **exakter Round-Trip** (Anzeige zurückgeparst === `roundAmount(qty ×
+  scaleFactor)`, ohne Toleranz) · keine Einheiten-Drift · Monotonie · keine Scheingenauigkeit.
+  Der Round-Trip ist die schärfste Invariante — er fängt, was man der Ausgabe nicht ansieht:
+  falsche Zahl ersetzt, Gebinde-Größe als Anzahl gelesen, Einheit verschluckt.
+- End-to-End 2 → 4 Personen: **alle 141 vergleichbaren Items wachsen**, keines bleibt gleich.
+  Kokosmilch 5 → 10 Dosen, Cumin 5.7 → 8.6 tsp (gedämpft ×1.5), Olivenöl 57 → 98.5 tbsp.
+- Einkaufsliste für Gruppen 1–8 + gemischt (Kinder, Heavy-Appetit): keine kaputten Mengen.
+- **337 Tests grün** (299 + 38). Build grün.
+
+**Wichtiger Nebenbefund — der Plan hängt an der Gruppengröße.**
+Ein Mengen-Vergleich zwischen zwei Gruppengrößen ist nur bei gleichem Plan aussagekräftig: der
+Waste-Optimizer (Release (ac), Pack-Füllung) bewertet über den `groupFactor` → bei **1–4 Personen
+identischer Plan, ab 5 weichen ~28–34 von 48 Slots ab**. Deshalb sah der 2→8-Vergleich zunächst
+nach Monotonie-Verletzungen aus („Bananen 18 → 7") — das sind **andere Menüs, kein Rechenfehler**.
+Der bestehende 2→4-Test funktionierte nur zufällig; er prüft die Plan-Gleichheit jetzt **explizit
+als Vorbedingung**, sonst schlägt er später aus dem falschen Grund fehl.
+
+**Neue Test-Datei `src/components/RecipesTab.test.jsx`** — erster Component-Test im Projekt.
+Rendert die Karte via `react-dom/server` (`renderToStaticMarkup`) statt `@testing-library/react`:
+die aufgeklappte Karte ist reines Markup ohne Interaktion → **keine neue Dependency nötig**
+(`CLAUDE.md`: keine unnötigen Dependencies). Sichert die Verkabelung — Überschrift „for 4 people"
+und „2 × 400ml cans" in derselben gerenderten Ansicht.
+
+**Erkenntnis für future-Claude:** Die 299 Bestandstests blieben beim Default-Flip **alle grün**,
+obwohl sich die Einkaufsmengen app-weit änderten — es gab **keine Assertion auf Mengen** und (bis
+jetzt) keine Component-Tests. Ein „Tests grün" allein belegt in diesem Repo keine Mengen-Korrektheit.
+
+**Bewusst NICHT gemacht:**
+- **Keine Daten-Normalisierung der 448 Strings** (wie `normalize-recipes.mjs` in (ar)). Wäre laut
+  `CLAUDE.md` § „Pro-Person-Mengen" konsequent gewesen, hätte aber ~350 Strings Review-Aufwand
+  bedeutet und `1.5 cloves/person` / `200ml/person` liest sich am Camp schlechter als `3 cloves` /
+  `1 can`. `BASE_SERVINGS` erreicht dasselbe ohne Datenrisiko.
+- **Kein `serves`-Feld pro Rezept.** Wäre explizit, verlangt aber Pflege bei jedem neuen Rezept.
+  Bei Bedarf später additiv nachrüstbar (`scaleFactor` müsste nur `serves ?? BASE_SERVINGS` lesen).
+- **Keine Configurator-Option für die Dämpfung.** Memory `feedback_generator_over_user_filters`:
+  Filter-Sprawl vermeiden. Die Dämpfung läuft transparent im Generator.
+- **`4 + 1600ml water`** wird nicht zu `1.6L` normalisiert — kosmetisch, kein Korrektheitsproblem.
+
 ## 2026-07-14 (aw) — Cyber-Security-Audit + Härtung + Push (Branch `redesign`)
 
 **Anlass (der Entwickler):** Vollständiger Security-Check vor Release — kein GitHub-Zugriff für böse

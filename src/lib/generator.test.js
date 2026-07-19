@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { generate, compatibleRecipesForCat, specialQuotaForDays, estimateSpecialCount, canonicalIngredient, describeQty, effortAllowed, parseAmount, unitClass } from './generator.js'
+import { generate, compatibleRecipesForCat, specialQuotaForDays, estimateSpecialCount, canonicalIngredient, describeQty, effortAllowed, parseAmount, unitClass, scaleFactor, scaleAmountLabel, roundAmount, isDamped } from './generator.js'
 import { setUserRecipes } from './recipe-pool.js'
 import { RECIPES } from '../data/recipes.js'
 
@@ -1271,5 +1271,448 @@ describe('Zutaten-Konsistenz über den ganzen Pool', () => {
     const mixed = [...byKey.entries()].filter(([, s]) => s.size > 1)
       .map(([k, s]) => `${k}: {${[...s].join(',')}}`)
     expect(mixed).toEqual([])
+  })
+})
+
+// ── Skalierung mit der Gruppengröße ────────────────────────────────────────
+//
+// Regression zum Entwickler-Report (Juli 2026): "Red lentil soup für 2 und für 4 Personen
+// verlangte dieselbe Menge Kokosmilch". Ursache: scaleFactor gab für jede Menge ohne
+// "/person"- oder "(for both)"-Marker ×1 zurück — 448 von 1022 Zutaten-Zeilen skalierten nie.
+// Der Pool ist durchgehend für 2 Personen geschrieben (BASE_SERVINGS), also ist eine
+// unmarkierte Menge eine 2-Personen-Menge und muss mit factor/2 skalieren.
+
+describe('scaleFactor() — unmarkierte Mengen sind 2-Personen-Mengen', () => {
+  const at = (amt, factor, name = 'Coconut milk') => scaleFactor(parseAmount(amt), factor, name)
+
+  it('unmarkierte Menge skaliert linear ab der 2-Personen-Basis', () => {
+    expect(at('1 × 400ml can', 1)).toBe(0.5)   // 1 Person → halbe Dose
+    expect(at('1 × 400ml can', 2)).toBe(1)     // 2 Personen → wie geschrieben
+    expect(at('1 × 400ml can', 4)).toBe(2)     // 4 Personen → 2 Dosen  ← der gemeldete Bug
+    expect(at('1 × 400ml can', 8)).toBe(4)
+  })
+
+  it('"/person"-Menge skaliert weiterhin mit der vollen Personenzahl', () => {
+    expect(at('150g/person', 1, 'Red lentils')).toBe(1)
+    expect(at('150g/person', 4, 'Red lentils')).toBe(4)
+  })
+
+  it('"(for both)" ist gleichbedeutend mit unmarkiert', () => {
+    expect(at('2 (for both)', 4, 'Naan bread')).toBe(at('2', 4, 'Naan bread'))
+  })
+
+  it('Gewürze und Bratfett skalieren halb-linear statt linear', () => {
+    // dampen(r) = 1 + (r-1)*0.5 → 4 Pers. ×1.5 statt ×2, 8 Pers. ×2.5 statt ×4
+    expect(at('1.5 tsp', 4, 'Cumin')).toBe(1.5)
+    expect(at('1.5 tsp', 8, 'Cumin')).toBe(2.5)
+    expect(at('2 tbsp', 4, 'Olive oil')).toBe(1.5)
+    expect(at('1 tsp', 4, 'Smoked paprika')).toBe(1.5)
+    expect(at('0.5 tsp', 4, 'Chili flakes')).toBe(1.5)
+  })
+
+  it('Sauce/Paste/Mehl skalieren linear — nicht als "Gewürz" gedämpft', () => {
+    // Sie liegen in derselben Kategorie "🫙 Spices, oils & sauces" und tragen dieselbe Einheit
+    // (tbsp) wie das Öl; die Dämpfung darf hier trotzdem nicht greifen.
+    expect(at('1 tbsp', 4, 'Tomato paste')).toBe(2)
+    expect(at('2 tbsp', 4, 'Soy sauce')).toBe(2)
+    expect(at('1 tsp', 4, 'Baking powder')).toBe(2)
+    expect(at('2 tbsp', 4, 'Cornflour')).toBe(2)
+  })
+
+  it('Aromaten werden gedämpft — Knoblauch, Ingwer, frischer Chili', () => {
+    // Entwickler-Report: "für 7 Personen würde ich nicht 11 Knoblauchzehen in Fajitas machen".
+    // Linear wären es genau 11 gewesen (3 × 7.05/2). Deckt sich mit der Kochliteratur:
+    // Knoblauch ~75% der rechnerischen Menge, Aroma sättigt.
+    expect(at('3 cloves', 4, 'Garlic')).toBe(1.5)
+    expect(at('2cm piece, grated', 4, 'Ginger')).toBe(1.5)
+    expect(at('1, sliced', 4, 'Red chili')).toBe(1.5)
+  })
+
+  it('Zwiebeln bleiben linear — sie sind Gemüse, nicht nur Aroma', () => {
+    // a46 Fajitas: "Onion, 0.5/person, sliced" — die isst man. Dämpfen würde zu wenig liefern.
+    expect(at('1 large', 4, 'Onion')).toBe(2)
+    expect(at('2', 4, 'Spring onion')).toBe(2)
+  })
+
+  it('DAMPED_RX erwischt keine Beinahe-Treffer', () => {
+    // Präfix-Kollisionen, die eine unverankerte oder zu kurze Regex still kaputt machen würde:
+    // "Coconut milk" vs. "Coconut oil" · "Salmon"/"Salted butter" vs. "Salt" ·
+    // "Sesame oil" vs. "Oil" (nur am Namensanfang) · "Chives" vs. "Chili".
+    for (const n of ['Coconut milk (full-fat)', 'Salmon', 'Salted butter', 'Sesame oil', 'Chives']) {
+      expect(at('2 tbsp', 4, n)).toBe(2)
+    }
+  })
+
+  it('Aroma-Namen, die Lebensmittel sind, bleiben linear (DAMPED_NOT_RX)', () => {
+    // "Garlic bread" ist Brot, "Ginger beer" ist ein Getränk — beide skalieren linear.
+    // Kommen aktuell nicht als Zutat im Pool vor, wären aber jederzeit plausibel.
+    for (const n of ['Garlic bread', 'Garlic toast', 'Ginger beer', 'Gingerbread', 'Garlic naan']) {
+      expect(at('2 tbsp', 4, n)).toBe(2)
+    }
+  })
+
+  it('dämpft genau Gewürzkit + Bratfett + Aromaten — nicht mehr', () => {
+    // Schutz gegen schleichende Ausweitung: aktuell 17 von 271 Zutaten-Namen im Pool.
+    const names = [...new Set(RECIPES.flatMap(r => r.ing.map(([n]) => n)))]
+    const damped = names.filter(n => at('2 tbsp', 4, n) === 1.5).sort()
+    expect(damped).toEqual([
+      'Black pepper', 'Chili flakes', 'Coconut oil', 'Coconut oil (in batter + for pan)',
+      'Cumin', 'Curry powder', 'Garlic', 'Ginger', 'Mixed dried herbs', 'Oil', 'Olive oil',
+      'Red chili', 'Red chili, sliced', 'Salt', 'Salt & pepper', 'Smoked paprika', 'Vegetable oil',
+    ])
+  })
+
+  it('keine gedämpfte Zutat trägt noch einen /person-Marker', () => {
+    // Ein "/person" auf einem Gewürz würde die Dämpfung umgehen und linear skalieren — genau der
+    // Paprika-Fall (a46: "1.5 tsp/person" → 10.5 TL bei 7 Personen). scripts/normalize-spice-
+    // scaling.mjs hat diese 22 Zeilen auf Pro-Gericht-Mengen umgestellt.
+    const leaks = []
+    for (const r of RECIPES) for (const [n, a] of r.ing) {
+      if (isDamped(n) && /\/person|per person/i.test(a)) leaks.push(`${r.id} "${n}": "${a}"`)
+    }
+    expect(leaks).toEqual([])
+  })
+
+  it('Sauce/Mayo behalten ihr /person — die skalieren zu Recht linear', () => {
+    expect(at('1 tbsp/person', 4, 'Soy sauce')).toBe(4)
+    expect(at('2 tbsp/person', 4, 'Mayo')).toBe(4)
+  })
+
+  it('a12 Red lentil soup: Kokosmilch verdoppelt sich von 2 auf 4 Personen', () => {
+    const a12 = RECIPES.find(r => r.id === 'a12')
+    const [name, amt] = a12.ing.find(([n]) => /coconut milk/i.test(n))
+    expect(scaleFactor(parseAmount(amt), 4, name))
+      .toBe(scaleFactor(parseAmount(amt), 2, name) * 2)
+  })
+})
+
+describe('scaleAmountLabel() — Anzeige in der Rezept-Ansicht', () => {
+  it('rechnet die Menge auf die Gruppe um und entfernt den /person-Marker', () => {
+    expect(scaleAmountLabel('150g/person', 4, 'Red lentils')).toBe('600g')
+    expect(scaleAmountLabel('1 × 400ml can', 4, 'Coconut milk')).toBe('2 × 400ml cans')
+    expect(scaleAmountLabel('3 cloves', 4, 'Garlic')).toBe('5 cloves')   // gedämpft (linear wären 6)
+  })
+
+  it('Gebinde-GRÖSSE bleibt stehen, nur die Anzahl skaliert', () => {
+    expect(scaleAmountLabel('1 × 400ml can', 8, 'Coconut milk')).toBe('4 × 400ml cans')
+    expect(scaleAmountLabel('2 × 185g cans (for both)', 4, 'Tuna in oil')).toBe('4 × 185g cans')
+  })
+
+  it('Gebinde ohne Anzahl im String bekommt die Anzahl vorangestellt', () => {
+    // "185g can/person" → parseAmount liest implizit 1 Dose; die 185 ist die Größe, nicht die Anzahl.
+    expect(scaleAmountLabel('185g can/person', 4, 'Baked beans (canned)')).toBe('4 × 185g cans')
+    expect(scaleAmountLabel('185g can/person', 1, 'Baked beans (canned)')).toBe('185g can')
+  })
+
+  it('Kochwasser skaliert mit, Verhältnis-Angaben nicht', () => {
+    expect(scaleAmountLabel('1 + 400ml water', 4, 'Vegetable stock cube')).toBe('2 + 800ml water')
+    expect(scaleAmountLabel('1 + 2× rice water', 4, 'Chicken stock cube')).toBe('2 + 2× rice water')
+  })
+
+  it('Schnittmaße in cm bleiben unangetastet', () => {
+    expect(scaleAmountLabel('100g/person, sliced 1cm thick', 4, 'Halloumi')).toBe('400g, sliced 1cm thick')
+    expect(scaleAmountLabel('1 large/person, sliced 1cm rounds', 4, 'Eggplant')).toBe('4 large, sliced 1cm rounds')
+  })
+
+  it('Gramm-Gloss in Klammern skaliert mit der Primärmenge', () => {
+    expect(scaleAmountLabel('1 tbsp (20g)/person', 4, 'Peanut butter')).toBe('4 tbsp (80g)')
+    expect(scaleAmountLabel('45g/person (25g mash, 20g sear)', 4, 'Butter')).toBe('180g (100g mash, 80g sear)')
+  })
+
+  it('Freitext-Annotationen überleben die Skalierung', () => {
+    expect(scaleAmountLabel('2 tsp — important!', 8, 'Cumin')).toBe('5 tsp — important!')
+    expect(scaleAmountLabel('2 (for both), warmed', 4, 'Naan bread')).toBe('4, warmed')
+  })
+
+  it('Mengen ohne Zahl bleiben wörtlich stehen', () => {
+    // "to taste" und "small handful/person" sind bereits für jede Gruppengröße korrekt.
+    expect(scaleAmountLabel('to taste', 8, 'Salt')).toBe('to taste')
+    expect(scaleAmountLabel('small handful/person', 8, 'Coriander leaves')).toBe('small handful/person')
+  })
+
+  it('kein Marker überlebt, wo eine Zahl skaliert wurde', () => {
+    const leaks = []
+    for (const r of RECIPES) for (const [n, a] of r.ing) {
+      if (parseAmount(a).qty == null) continue        // ohne Zahl bleibt der Text roh (s.o.)
+      const out = scaleAmountLabel(a, 4, n)
+      if (/\/person|per person|for both/i.test(out)) leaks.push(`${r.id}: "${a}" → "${out}"`)
+    }
+    expect(leaks).toEqual([])
+  })
+
+  it('produziert für keine Zutaten-Zeile im Pool eine kaputte Ausgabe', () => {
+    const bad = []
+    for (const r of RECIPES) for (const [n, a] of r.ing) {
+      for (const f of [1, 2, 4, 8]) {
+        const out = scaleAmountLabel(a, f, n)
+        if (!out.trim() || /NaN|undefined|null/.test(out)) bad.push(`${r.id}: "${a}" @${f} → "${out}"`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+})
+
+describe('generate() — Einkaufsliste skaliert mit der Gruppe', () => {
+  const P2 = [{ type: 'adult-m', appetite: 'medium' }, { type: 'adult-f', appetite: 'medium' }]
+  const P4 = [...P2, { type: 'adult-m', appetite: 'medium' }, { type: 'adult-f', appetite: 'medium' }]
+  const shoppingByKey = (people) => {
+    const r = generate(defaults({ people }))
+    const m = new Map()
+    for (const sections of Object.values(r.shopping))
+      for (const sec of sections) for (const it of sec.items) m.set(it.key, it)
+    return m
+  }
+  const sum = it => Object.values(it.amount || {}).reduce((s, q) => s + q, 0)
+  const planIds = (people) => generate(defaults({ people })).plan.flatMap(d => [d.f?.r, d.m?.r, d.ab?.r])
+
+  // WICHTIG für den Test unten: der Plan hängt über den Waste-Optimizer (Release ac, Pack-Füllung)
+  // am groupFactor. Bei 1–4 Personen ist er identisch, ab 5 weicht er in ~30 von 48 Slots ab.
+  // Ein Mengen-Vergleich über verschiedene Gruppengrößen ist deshalb NUR bei gleichem Plan
+  // aussagekräftig — sonst vergleicht man zwei verschiedene Menüs.
+  it('der Plan ist bei 2 und 4 Personen identisch (Vorbedingung des Mengen-Vergleichs)', () => {
+    expect(planIds(P4)).toEqual(planIds(P2))
+  })
+
+  it('jedes vergleichbare Item wächst von 2 auf 4 Personen — keines bleibt gleich', () => {
+    const two = shoppingByKey(P2), four = shoppingByKey(P4)
+    const flat = []
+    for (const [key, a] of two) {
+      const b = four.get(key)
+      if (!b || sum(a) === 0) continue
+      if (sum(b) <= sum(a)) flat.push(`${key}: ${sum(a)} → ${sum(b)}`)
+    }
+    expect(flat).toEqual([])
+  })
+
+  it('liefert für jede Gruppengröße 1–8 eine intakte Einkaufsliste', () => {
+    // Deckt ungerade (5, 7) und gemischte Gruppen ab. Kein Mengen-Vergleich zwischen den Größen,
+    // weil der Plan ab 5 Personen abweicht (s.o.) — geprüft wird die Integrität der Ausgabe.
+    const M = { type: 'adult-m', appetite: 'medium' }
+    const F = { type: 'adult-f', appetite: 'medium' }
+    const C = { type: 'child', appetite: 'light' }
+    const groups = [
+      [M], [M, F], [M, F, M], [M, F, M, F], [M, F, M, F, M],
+      [M, F, M, F, M, F], [M, F, M, F, M, F, M], [M, F, M, F, M, F, M, F],
+      [M, F, C, C, C],                                  // gemischt mit Kindern
+      [{ type: 'adult-m', appetite: 'heavy' }, { type: 'child', appetite: 'light' }],
+    ]
+    const bad = []
+    for (const people of groups) {
+      for (const [key, it] of shoppingByKey(people)) {
+        if (!it.qty || /NaN|undefined|Infinity/.test(it.qty)) bad.push(`${people.length}P ${key} → "${it.qty}"`)
+        for (const [u, q] of Object.entries(it.amount || {})) {
+          if (!Number.isFinite(q) || q < 0) bad.push(`${people.length}P ${key}.${u} = ${q}`)
+        }
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('Kokosmilch verdoppelt sich von 2 auf 4 Personen', () => {
+    const a = shoppingByKey(P2).get('coconut milk')
+    const b = shoppingByKey(P4).get('coconut milk')
+    expect(a).toBeTruthy()
+    expect(b.amount.can).toBeCloseTo(a.amount.can * 2, 5)
+  })
+})
+
+// ── Rundung & ungerade Gruppengrößen ───────────────────────────────────────
+//
+// Warum das nötig ist: groupFactor ist fast nie glatt. 5 Erwachsene = 5.05 (Mann 1.05 + Frau 0.95),
+// 7 Erwachsene = 7.05. Ohne einheiten-bewusste Rundung stünde in der Rezept-Ansicht "758g Red
+// lentils" und "7.5 cloves" — Scheingenauigkeit, die niemand abmisst.
+// Die Rundung ist NUR Anzeige: die Einkaufsliste rechnet ungerundet weiter und rundet erst am
+// Ende auf ganze Gebinde.
+
+describe('roundAmount() — küchentaugliche Stufen je Einheiten-Klasse', () => {
+  it('Masse/Volumen werden gröber, je größer der Wert', () => {
+    expect(roundAmount(7.4, 'g')).toBe(7)         // <10 → ganze
+    expect(roundAmount(152, 'ml')).toBe(150)      // <1000 → 10er
+    expect(roundAmount(757.5, 'g')).toBe(760)     // 5 Pers. Linsen — war "758g"
+    expect(roundAmount(1057.5, 'g')).toBe(1050)   // 7 Pers. Linsen — war "1058g"
+    expect(roundAmount(82, 'g')).toBe(80)         // <100 → 5er
+  })
+
+  it('Löffel bleiben in Viertelschritten (mit Messlöffel abmessbar)', () => {
+    expect(roundAmount(2.625, 'tsp')).toBe(2.75)
+    expect(roundAmount(3.5, 'tbsp')).toBe(3.5)
+  })
+
+  it('Zählbares ab 3 ganz, darunter Viertel', () => {
+    expect(roundAmount(7.575, 'clove')).toBe(8)   // war "7.5 cloves"
+    expect(roundAmount(3.525, null)).toBe(4)      // Zwiebeln bei 7 Pers.
+    expect(roundAmount(2.525, null)).toBe(2.5)    // halbe Zwiebel ist normal
+    expect(roundAmount(0.25, null)).toBe(0.25)    // Viertelzwiebel steht so im Pool
+  })
+
+  it('Gebinde: ab 3 halbe Dosen, darunter Viertel', () => {
+    expect(roundAmount(3.525, 'can')).toBe(3.5)   // "3.5 cans" = 4 öffnen, letzte halb
+    expect(roundAmount(2.525, 'can')).toBe(2.5)
+    // Ein 0.5er-Raster hätte 0.63 auf 0.5 ABgerundet → Menge sinkt, obwohl die Gruppe wächst.
+    expect(roundAmount(0.63, 'can')).toBe(0.75)
+  })
+})
+
+describe('scaleAmountLabel() — ungerade und gemischte Gruppen', () => {
+  // Echte groupFactor-Werte, nicht die glatten Wunschzahlen.
+  const F5 = 5.05   // 5 Erwachsene
+  const F7 = 7.05   // 7 Erwachsene
+
+  it('5 Personen (Faktor 5.05) liefert abmessbare Mengen', () => {
+    expect(scaleAmountLabel('150g/person', F5, 'Red lentils')).toBe('760g')
+    expect(scaleAmountLabel('1 × 400ml can', F5, 'Coconut milk')).toBe('2.5 × 400ml cans')
+    expect(scaleAmountLabel('3 cloves', F5, 'Garlic')).toBe('5 cloves')   // gedämpft (linear wären 8)
+    expect(scaleAmountLabel('1 + 400ml water', F5, 'Vegetable stock cube')).toBe('2.5 + 1000ml water')
+  })
+
+  it('7 Personen (Faktor 7.05) liefert abmessbare Mengen', () => {
+    expect(scaleAmountLabel('150g/person', F7, 'Red lentils')).toBe('1050g')
+    expect(scaleAmountLabel('1 × 400ml can', F7, 'Coconut milk')).toBe('3.5 × 400ml cans')
+    expect(scaleAmountLabel('3 cloves', F7, 'Garlic')).toBe('7 cloves')   // gedämpft (linear wären 11)
+  })
+
+  it('a46 Fajitas bei 7 Personen — der gemeldete Fall', () => {
+    // Entwickler: "für 7 Personen würde ich nicht 11 Knoblauchzehen in Fajitas machen, ebenso
+    // wenig 10.75 Esslöffel Paprika." Knoblauch war ungedämpft, Paprika trug "/person".
+    const a46 = RECIPES.find(r => r.id === 'a46')
+    const amt = (rx) => a46.ing.find(([n]) => rx.test(n))
+    const [gName, gAmt] = amt(/^garlic/i)
+    const [pName, pAmt] = amt(/^smoked paprika/i)
+    expect(scaleAmountLabel(gAmt, F7, gName)).toBe('7 cloves, minced')   // war: 11
+    expect(pAmt).toBe('3 tsp')                                           // war: '1.5 tsp/person'
+    expect(scaleAmountLabel(pAmt, F7, pName)).toBe('6.75 tsp')           // war: 10.5 tsp
+    // Was man ISST, skaliert weiter linear:
+    const [cName, cAmt] = amt(/^chicken breast/i)
+    expect(scaleAmountLabel(cAmt, F7, cName)).toBe('1400g, sliced')
+  })
+
+  it('keine Scheingenauigkeit über den ganzen Pool bei krummen Faktoren', () => {
+    const bad = []
+    for (const r of RECIPES) for (const [n, a] of r.ing) {
+      const p = parseAmount(a)
+      if (p.qty == null) continue
+      for (const f of [3.05, 5.05, 7.05, 4.55, 6.65]) {
+        if (scaleFactor(p, f, n) === 1) continue        // Rohstring bei Basisgröße — darf krumm sein
+        const out = scaleAmountLabel(a, f, n)
+        const q = parseAmount(out).qty
+        if (q == null) continue
+        // Masse/Volumen über 100 muss auf 10 glatt sein
+        if (['g', 'kg', 'ml', 'l'].includes(p.unit) && q > 100 && Math.abs(q % 10) > 1e-9) {
+          bad.push(`${r.id} "${a}" @${f} → "${out}"`)
+        }
+        // Zählbares ab 3 muss ganzzahlig sein
+        const counted = !p.unit || ['clove', 'slice', 'fillet', 'square', 'head', 'roll'].includes(p.unit)
+        if (counted && q >= 3 && Math.abs(q - Math.round(q)) > 1e-9) {
+          bad.push(`${r.id} "${a}" @${f} → "${out}"`)
+        }
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('Round-Trip: die angezeigte Zahl ist exakt die gerundete Generator-Rechnung', () => {
+    // Stärkste Invariante: die Anzeige zurücklesen und gegen die Mathematik prüfen. Fängt genau
+    // die Fehler, die man der Ausgabe nicht ansieht — falsche Zahl ersetzt, Gebinde-Größe als
+    // Anzahl gelesen, Einheit verschluckt. Über den ganzen Pool × alle realistischen Faktoren.
+    const FACTORS = [0.44, 0.8, 1, 1.05, 1.26, 2, 2.1, 3.05, 3.32, 4, 4.55, 5.05, 6, 6.65, 7.05, 8.4, 10.1, 13.3]
+    const bad = []
+    for (const r of RECIPES) for (const [n, a] of r.ing) {
+      const p = parseAmount(a)
+      if (p.qty == null) continue
+      for (const f of FACTORS) {
+        const mult = scaleFactor(p, f, n)
+        // Bei mult === 1 gibt scaleAmountLabel bewusst den Rohstring zurück (ungerundet):
+        // "125g/person" bei 1 Person muss 125g bleiben, nicht auf 130g gerundet werden.
+        const expected = mult === 1 ? p.qty : roundAmount(p.qty * mult, p.unit)
+        const back = parseAmount(scaleAmountLabel(a, f, n))
+        if (back.qty == null || Math.abs(back.qty - expected) > 1e-9) {
+          bad.push(`${r.id} "${a}" @${f} → "${scaleAmountLabel(a, f, n)}" · ${back.qty} ≠ ${expected}`)
+        }
+        if (back.unit !== p.unit) {
+          bad.push(`${r.id} "${a}" @${f} → Einheit ${p.unit} → ${back.unit}`)
+        }
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('Monotonie: keine Zutat schrumpft, wenn die Gruppe wächst', () => {
+    const FACTORS = [0.44, 1, 1.05, 2, 2.1, 3.05, 4, 4.55, 5.05, 6, 7.05, 8.4, 10.1, 13.3]
+    const bad = []
+    for (const r of RECIPES) for (const [n, a] of r.ing) {
+      if (parseAmount(a).qty == null) continue
+      let prev = null
+      for (const f of FACTORS) {
+        const q = parseAmount(scaleAmountLabel(a, f, n)).qty
+        if (q == null) continue
+        if (prev != null && q < prev - 1e-9) bad.push(`${r.id} "${a}" @${f}: ${q} < ${prev}`)
+        prev = q
+      }
+    }
+    expect(bad).toEqual([])
+  })
+})
+
+// ── Vorwärts-Schutz: kein Gewürz/Aromat darf künftig ungedämpft durchrutschen ────────────────
+//
+// Anlass: der Knoblauch-Bug (11 Zehen für 7 Personen) entstand, weil ein Aromat in DAMPED_RX
+// FEHLTE. "dämpft genau …" oben prüft nur den IST-Zustand des Pools — es würde ein NEU
+// hinzugefügtes, ungedämpftes "Turmeric" NICHT fangen. Diese Tests sind der positive Guard:
+// bekannte Trockengewürze/Aromaten MÜSSEN gedämpft sein, frische Blätter/Saucen NICHT.
+
+describe('isDamped() — Vorwärts-Schutz gegen ungedämpfte Gewürze', () => {
+  it('das Trockengewürz-Kit + alle plausiblen Erweiterungen sind gedämpft', () => {
+    // Kit aus Release (ae) + Gewürze, die ein neues Rezept realistisch mitbringt. Kommt eines
+    // davon künftig in ein Rezept, MUSS es gedämpft skalieren — sonst schlägt dieser Test an.
+    const mustDamp = [
+      'Salt', 'Black pepper', 'Salt & pepper', 'Cumin', 'Smoked paprika', 'Chili flakes',
+      'Curry powder', 'Mixed dried herbs',                          // das Kit
+      'Paprika', 'Turmeric', 'Ground cumin', 'Ground coriander', 'Garam masala', 'Cayenne',
+      'Cinnamon', 'Chili powder', 'Ground ginger', 'Cardamom', 'Nutmeg', 'Allspice', // eindeutige Trockengewürze
+      'Dried thyme', 'Dried oregano', 'Dried basil',               // Kräuter NUR in der "Dried"-Form
+      'Garlic', 'Ginger', 'Red chili', 'Green chili', 'Chili pepper', // Aromaten
+      'Olive oil', 'Vegetable oil', 'Coconut oil', 'Canola oil', 'Oil', // Bratfett
+    ]
+    const notDamped = mustDamp.filter(n => !isDamped(n))
+    expect(notDamped).toEqual([])
+  })
+
+  it('mehrdeutige Kräuter bleiben in der BLOSSEN Form linear (könnten frisch sein)', () => {
+    // "Oregano"/"Basil"/"Thyme" ohne "Dried"-Präfix könnten das frische Kraut meinen → linear.
+    // Nur die eindeutig getrocknete Form ("Dried oregano") wird gedämpft.
+    for (const n of ['Oregano', 'Basil', 'Thyme', 'Rosemary', 'Sage', 'Coriander leaves']) {
+      expect(isDamped(n)).toBe(false)
+    }
+  })
+
+  it('frische Blätter, Gemüse und echte Saucen bleiben linear', () => {
+    // Gegenprobe: was gegessen wird oder Volumen/Feuchtigkeit liefert, darf NICHT gedämpft werden.
+    const mustNotDamp = [
+      'Basil', 'Coriander leaves', 'Parsley', 'Mint',              // frische Kräuter (Blatt)
+      'Onion', 'Spring onion', 'Red onion', 'Capsicum',            // Gemüse
+      'Ground beef', 'Ground pork', 'Ground lamb', 'Salmon', 'Sardines in oil', // Fleisch/Fisch (Kollision "ground")
+      'Soy sauce', 'Tamari', 'Fish sauce', 'Oyster sauce', 'Mayo', 'Tahini', 'Mango chutney', // Saucen (Volumen)
+      'Tomato paste', 'Sesame oil', 'Coconut milk', 'Coconut cream', 'Peanut butter', // Zutaten, kein Aroma-Streuer
+      'Garlic bread', 'Ginger beer', 'Gingerbread', 'Cinnamon roll', // Lebensmittel mit Aroma-Namen
+    ]
+    const wronglyDamped = mustNotDamp.filter(n => isDamped(n))
+    expect(wronglyDamped).toEqual([])
+  })
+
+  it('jede tsp/tbsp-Zutat im Pool ist entweder gedämpft oder eine echte Sauce/Zutat', () => {
+    // Fängt eine künftige Würz-Lücke: eine Löffel-Menge, die weder gedämpft noch eine bekannte
+    // lineare Zutat ist, wäre verdächtig (skaliert linear zu absurden Mengen).
+    const KNOWN_LINEAR = /^(?:optional: )?(soy sauce|tamari|fish sauce|oyster sauce|worcestershire|sriracha|hoisin|bbq|tomato (?:paste|sauce|ketchup)|passata|mustard|dijon|mayo|vegan mayo|honey|maple|sugar|brown sugar|tahini|hummus|pesto|salsa|(?:mango )?chutney|jam|nutritional yeast|(?:rice |balsamic |apple cider |red wine )?vinegar|lemon juice|lime juice|capers|olives|peanut butter|almond butter|chia|shredded coconut|sesame|pumpkin seeds|pine nuts|cornflour|cocoa|baking powder|vanilla|coconut oil \(in|fried shallots|pickled|sweet chili|coconut cream|condensed milk|parsley|coriander|basil|mint|dill)\b/i
+    const suspects = []
+    const seen = new Set()
+    for (const r of RECIPES) for (const [n, a] of r.ing) {
+      const p = parseAmount(a)
+      if (p.qty == null || !['tsp', 'tbsp', 'pinch', 'cup'].includes(p.unit)) continue
+      if (isDamped(n) || KNOWN_LINEAR.test(n)) continue
+      if (seen.has(n)) continue
+      seen.add(n)
+      suspects.push(`${r.id} "${n}": "${a}"`)
+    }
+    expect(suspects).toEqual([])
   })
 })

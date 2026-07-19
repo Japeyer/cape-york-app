@@ -12,10 +12,12 @@ import {
 import { recipeById } from './recipe-pool.js'
 
 // Addiert die (skalierte) Basis-Menge einer Zutat in ein totals-Objekt { unit: qty }.
-function addAmount(totals, ingAmt, factor, batch) {
+// `ingName` muss mitlaufen: scaleFactor dämpft darüber Gewürze/Bratfett. Ohne den Namen würde der
+// Verbrauch linear gerechnet, der Einkauf aber gedämpft → der Stock-Tab meldete Öl als aufgebraucht.
+function addAmount(totals, ingName, ingAmt, factor, batch) {
   const parsed = parseAmount(ingAmt)
   if (parsed.qty == null) return
-  const mult = scaleFactor(parsed, factor) * batch
+  const mult = scaleFactor(parsed, factor, ingName) * batch
   const base = unitToBase(parsed.qty, parsed.unit)
   const cls = unitClass(base.unit)
   const key = cls === 'mass' ? 'g' : cls === 'volume' ? 'ml' : (base.unit || 'count')
@@ -48,7 +50,7 @@ export function consumedByCooked(plan, factor) {
         if (!isShoppableIngredient(name)) return
         const { key } = canonicalIngredient(name)
         if (!out[key]) out[key] = {}
-        addAmount(out[key], amt, factor, batch)
+        addAmount(out[key], name, amt, factor, batch)
       })
     }
   }

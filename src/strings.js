@@ -299,6 +299,7 @@ export const S = {
       ingLabel: 'Ingredients',
       ingNamePh: 'Ingredient',
       ingAmtPh: 'Amount (e.g. 200g/person)',
+      ingHint: 'Add "/person" to scale per head (200g/person). A plain amount (1 can) counts as a serving for 2 — we scale it to your group.',
       addIng: 'Add ingredient',
       removeIng: 'Remove ingredient',
       stepsLabel: 'Steps (one per line)',

@@ -5,6 +5,7 @@ import { S } from '../strings.js'
 import PremiumGate from './PremiumGate.jsx'
 import VeganBadge from './VeganBadge.jsx'
 import { FREE_LIMITS } from '../lib/premium.js'
+import { scaleAmountLabel, BASE_SERVINGS } from '../lib/generator.js'
 
 function allergenLabels(ids) {
   return ids.map(id => S.config.allergenOptions[id]?.label.toLowerCase() ?? id)
@@ -104,6 +105,9 @@ function RecipeEditorSheet({ open, recipe, onSave, onClose }) {
           </div>
 
           <label className="re-label">{S.recipes.editor.ingLabel}</label>
+          {/* Ohne diesen Hinweis rät der Nutzer, worauf sich "1 can" bezieht — und die App
+              skaliert seine Rezepte dann falsch auf die Gruppe. */}
+          <div className="re-hint">{S.recipes.editor.ingHint}</div>
           {ings.map((row, i) => (
             <div key={i} className="re-ingrow">
               <input className="re-input re-ing-name" value={row[0]} onChange={e => setIng(i, 0, e.target.value)} placeholder={S.recipes.editor.ingNamePh} />
@@ -125,7 +129,7 @@ function RecipeEditorSheet({ open, recipe, onSave, onClose }) {
   )
 }
 
-function RecipeCard({ recipe, persons, toppingAllergens, focused }) {
+function RecipeCard({ recipe, persons, factor, toppingAllergens, focused }) {
   const [open, setOpen] = useState(!!focused)
   // Wird die Karte per Link fokussiert (aus Menu/Einkaufsliste), aufklappen — auch wenn sie
   // schon gemountet war. Schließt nie automatisch (nur der User klappt zu).
@@ -161,7 +165,10 @@ function RecipeCard({ recipe, persons, toppingAllergens, focused }) {
           {recipe.ing.map(([name, amt], i) => (
             <div key={i} className="recipe-ing">
               <span className="ing-name">{name}</span>
-              <span className="ing-amt">{amt}</span>
+              {/* Auf die Gruppe umgerechnet — die Überschrift verspricht "for N people".
+                  Skaliert wird mit groupFactor (nicht persons), damit die Menge exakt der
+                  Einkaufsliste entspricht: die rechnet mit demselben Faktor. */}
+              <span className="ing-amt">{scaleAmountLabel(amt, factor, name)}</span>
             </div>
           ))}
 
@@ -182,7 +189,9 @@ function RecipeCard({ recipe, persons, toppingAllergens, focused }) {
 
 const CAT_LABELS = { f: S.recipes.sections.breakfast, m: S.recipes.sections.lunch, a: S.recipes.sections.dinner }
 
-export default function RecipesTab({ plan = [], persons = 2, focusRecipeId = null, onFocusHandled, userRecipes = [], onSaveRecipe, onDeleteRecipe, premium = false, onUpgrade }) {
+// `factor` = groupFactor aus dem Generator (reeller Skalar, berücksichtigt Appetit/Alter).
+// Default BASE_SERVINGS: ohne Faktor werden die Rezepte so gezeigt, wie sie geschrieben sind.
+export default function RecipesTab({ plan = [], persons = 2, factor = BASE_SERVINGS, focusRecipeId = null, onFocusHandled, userRecipes = [], onSaveRecipe, onDeleteRecipe, premium = false, onUpgrade }) {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState(null)   // Rezept-Objekt (Edit) oder null (Neu)
   const openEditor = (recipe) => { setEditing(recipe || null); setEditorOpen(true) }
@@ -241,7 +250,7 @@ export default function RecipesTab({ plan = [], persons = 2, focusRecipeId = nul
       {userRecipes.length === 0 && <div className="my-recipes-empty">{S.recipes.myRecipesEmpty}</div>}
       {userRecipes.map(r => (
         <div key={r.id} className="my-recipe">
-          <RecipeCard recipe={r} persons={persons} focused={r.id === focusRecipeId} />
+          <RecipeCard recipe={r} persons={persons} factor={factor} focused={r.id === focusRecipeId} />
           <div className="my-recipe-actions">
             <button className="my-recipe-edit" onClick={() => openEditor(r)}>✎ {S.recipes.editor.editBtn}</button>
             <button
@@ -276,6 +285,7 @@ export default function RecipesTab({ plan = [], persons = 2, focusRecipeId = nul
                 key={r.id}
                 recipe={r}
                 persons={persons}
+                factor={factor}
                 toppingAllergens={toppingMap.get(r.id)}
                 focused={r.id === focusRecipeId}
               />
@@ -294,6 +304,7 @@ export default function RecipesTab({ plan = [], persons = 2, focusRecipeId = nul
                     <RecipeCard
                       recipe={r}
                       persons={persons}
+                      factor={factor}
                       toppingAllergens={toppingMap.get(r.id)}
                       focused={r.id === focusRecipeId}
                     />
