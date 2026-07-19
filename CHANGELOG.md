@@ -5,6 +5,69 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-19 (ba) — „Niemand hungert"-Testverfahren (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ich will sicher gehen, dass die Menüs und die Skalierung zu 100%
+verlässlich sind — es kann nicht sein, dass die Kunden auf dem Trip hungern, weil die App buggt.
+Schlage ein Testverfahren vor, das die Funktionalität in allen realistischen Szenarien garantiert."
+
+**Kritischer Befund vorab:** Der bestehende Test `inventory.test.js:53` („alle gekocht → Bestand
+komplett 0") war grün, **bewies aber nicht, dass genug gekauft wird**. `subtractAmounts` klemmt auf
+0 → „200 g gekauft / 500 g gebraucht" ergibt `{}` → `isDepleted` = true → Test grün, obwohl 300 g
+fehlen. Die 0-Klemmung **maskierte Unter-Einkauf** — genau den Hunger-Fall. Diese Lücke war der
+Ausgangspunkt.
+
+**Failure-Modes von „hungern" (konkretisiert):** (1) leerer Koch-Slot, (2) Unter-Einkauf,
+(3) nicht essbar (Diät-/Allergen-Verletzung), (4) verderbliche Zutat kommt nach dem Koch-Tag,
+(5) kaputte Mengenanzeige. Das Verfahren adressiert jeden Modus mit einer harten Invariante.
+
+**Ebene A — Sicherheits-Sweep** (`src/lib/generator.safety.test.js`, 5 Tests):
+Weil der Generator deterministisch ist, ist ein *erschöpfender* Sweep aussagekräftiger als
+Zufalls-Property-Tests. Abgefahren werden **~1090 Konfigurationen** über die failure-relevanten
+Achsen (Diät × Burner × Kochaufwand × Allergene × Tage × Personen × Kühlschrank × Stops), inkl.
+Extremkombinationen (vegan + viele Allergene + 1 Burner + minimal-Aufwand). Pro Trip geprüft:
+- **I1** jeder Slot hat Rezept / Restaurant / Reste — oder ist Skip; nie leer.
+- **I2** Einkauf ≥ Bedarf für jede Zutat (Deckung). Bedarf über `consumedByCooked` (separater
+  Codepfad in `inventory.js`) → fängt Drift zwischen Einkaufs- und Verbrauchs-Skalierung.
+- **I3** kein Slot unterschreitet die angewandte Diät. **I4** kein gewähltes Allergen als Core.
+- **I5** keine verderbliche Zutat in einem Stop nach ihrem letzten Koch-Tag.
+- **I6** kein `qty`/`amount` ist NaN/undefined/Infinity/≤0.
+- **I8** greift ein Fallback (Diät/Burner/Aufwand), erscheint eine Warnung.
+
+**Neue `shortfall(bought, consumed)`** in `inventory.js`: Umkehrung von `subtractAmounts`, aber
+**ohne** 0-Klemmung → Unterdeckung wird sichtbar. `subtractAmounts` bleibt unverändert (seine
+Klemmung ist für den Stock-Tab korrekt — keine negativen Bestände). +2 Tests in `inventory.test.js`.
+
+**Schärfe verifiziert (Mutations-Test):** Ein absichtlicher `× 0.5`-Unter-Einkauf in
+`generateShopping` ließ I2 sofort und präzise fehlschlagen („chicken breast: fehlt 189 g",
+3 von 5 Sweeps rot). Danach revertiert. Der Sweep ist also nicht vacuously grün.
+
+**Ebene B — Golden Master** (`src/lib/generator.golden.test.js`, 4 Tests + Snapshot):
+Der reale Eigen-Trip (16 Tage, 2 Personen, omnivore, Bamaga-Resupply) liegt als committeter,
+**lesbarer** Snapshot fest (Menüplan + Cairns/Bamaga-Einkaufsliste + Warnungen + Kennzahlen).
+Künftige Generator-/Rezept-Änderungen, die den Trip verschieben, erzeugen einen sichtbaren
+Diff im Review — die in STATUS oft erwähnte „bit-identisch"-Prüfung wird damit dauerhaftes Gate.
+Gewollte Änderungen werden per `vitest -u` bewusst übernommen.
+
+**Ebene C — `RELEASE-CHECKLIST.md`:** Manueller Offline-Geräte-Check (PWA-Install, Service-Worker-
+Cache, `localStorage`-Persistenz über Neustart/Update, nicht-destruktive Konfig-Edits, Flugmodus-
+Durchlauf auf Samsung ~360px) = Vorab-Schwelle aus `PRODUCT.md` §5.1. Plus Release-Privacy-Punkte
+(alte Branches ersetzen, Kontakt-Platzhalter, Icons).
+
+**Bewusst NICHT gemacht:** **I7** (Rezept-Anzeige == Einkaufs-Skalierung) nicht doppelt getestet —
+Anzeige und Einkauf teilen dieselbe `scaleFactor`-Engine, die I2 gegen `consumedByCooked` absichert;
+die Anzeige selbst deckt `RecipesTab.test.jsx` + der `scaleAmountLabel`-Block in `generator.test.js`
+ab. **Ehrliche Grenze von I2:** beweist *Konsistenz* zwischen Einkauf und Verbrauch, nicht die
+absolute Korrektheit der Skalierungs-Zahlen — die sichern die konkreten Wert-Tests in
+`generator.test.js`. Kein voller kartesischer Sweep (wäre >40k Configs / >60s) — stattdessen
+systematisch über die failure-relevanten Achsen-Paare, in ~3,3s.
+
+**Ergebnis:** 346 → **357 Tests grün** (+11: 2 shortfall, 5 Sweep, 4 Golden Master). Build grün.
+Neue Dateien: `generator.safety.test.js`, `generator.golden.test.js` (+ Snapshot), `RELEASE-CHECKLIST.md`.
+Geändert: `inventory.js` (+`shortfall`), `inventory.test.js`.
+
+---
+
 ## 2026-07-16 (az) — Skalierung erschöpfend verifiziert + Dämpfung vorwärts-robust (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Wende die Skalierungslogik auf alle Rezepte an, sodass es zu 100%

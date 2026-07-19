@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { generate } from './generator.js'
-import { consumedByCooked, subtractAmounts, isDepleted, formatAmount } from './inventory.js'
+import { consumedByCooked, subtractAmounts, shortfall, isDepleted, formatAmount } from './inventory.js'
 
 const base = {
   days: 8,
@@ -66,5 +66,37 @@ describe('consumedByCooked', () => {
     for (const key of Object.keys(bought)) {
       expect(isDepleted(subtractAmounts(bought[key], consumed[key]))).toBe(true)
     }
+  })
+})
+
+describe('shortfall — Deckungs-Invariante (niemand hungert)', () => {
+  it('leer wenn genug gekauft, zeigt die Fehlmenge wenn zu wenig', () => {
+    expect(shortfall({ g: 900 }, { g: 900 })).toEqual({})   // exakt genug
+    expect(shortfall({ g: 900 }, { g: 500 })).toEqual({})   // Überschuss → keine Lücke
+    expect(shortfall({ g: 200 }, { g: 500 })).toEqual({ g: 300 })  // 300 g fehlen — Hunger-Fall
+    expect(shortfall(undefined, { count: 2 })).toEqual({ count: 2 })
+    expect(shortfall({ count: 5 }, undefined)).toEqual({})
+  })
+
+  it('der Einkauf deckt den vollen Bedarf jeder Zutat, wenn der ganze Plan gekocht wird', () => {
+    // Genau der Fall, der bei subtractAmounts durch die 0-Klemmung maskiert würde:
+    // wäre der Einkauf zu niedrig skaliert, bliebe subtractAmounts leer, shortfall dagegen NICHT.
+    const r0 = generate(base)
+    const ms = {}
+    for (const d of r0.plan) ms[d.d] = { f: 'cooked', m: 'cooked', ab: 'cooked' }
+    const r = generate({ ...base, mealStatus: ms })
+    const bought = {}
+    for (const bucket of Object.values(r.shopping)) for (const c of bucket) for (const it of c.items) {
+      if (!it.key || !it.amount) continue
+      if (!bought[it.key]) bought[it.key] = {}
+      for (const [u, q] of Object.entries(it.amount)) bought[it.key][u] = (bought[it.key][u] || 0) + q
+    }
+    const consumed = consumedByCooked(r.plan, r.config.groupFactor)
+    const gaps = []
+    for (const key of Object.keys(consumed)) {
+      const miss = shortfall(bought[key], consumed[key])
+      if (Object.keys(miss).length) gaps.push(`${key}: ${JSON.stringify(miss)}`)
+    }
+    expect(gaps).toEqual([])
   })
 })

@@ -67,6 +67,20 @@ export function subtractAmounts(bought, consumed) {
   return rem
 }
 
+// Fehlmenge = Verbrauch − Einkauf, pro Einheit (nur wo positiv). Umkehrung von subtractAmounts.
+// Für die Deckungs-Prüfung "reicht der Einkauf für den Plan?": leeres Ergebnis = genug gekauft,
+// niemand geht auf dem Trip hungrig ins Bett. Anders als subtractAmounts wird NICHT auf 0 geklemmt —
+// eine Unterdeckung MUSS sichtbar werden. (subtractAmounts klemmt bewusst, weil der Stock-Tab keine
+// negativen Bestände zeigen darf; für die Test-Invariante brauchen wir aber genau das Vorzeichen.)
+export function shortfall(bought, consumed) {
+  const miss = {}
+  for (const [unit, q] of Object.entries(consumed || {})) {
+    const lack = q - ((bought && bought[unit]) || 0)
+    if (lack > 0.0001) miss[unit] = lack
+  }
+  return miss
+}
+
 // Ist praktisch nichts mehr übrig (aufgebraucht)?
 export function isDepleted(amount) {
   return !amount || Object.values(amount).every(q => q <= 0.0001)
