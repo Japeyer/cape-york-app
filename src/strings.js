@@ -18,6 +18,17 @@ export const S = {
     warningPrefix: 'ℹ️ ',
   },
 
+  // Fallback-Screen der Error Boundary (globales Absturz-Netz). Erscheint statt eines
+  // weißen Bildschirms, wenn irgendeine Komponente beim Rendern crasht.
+  error: {
+    title: 'Something went wrong',
+    body: 'The app hit an unexpected problem. Your saved trips are still stored on this device — try again, or reset the app if the problem keeps happening.',
+    retry: 'Try again',
+    reset: 'Reset app & reload',
+    resetConfirm: 'This clears all trips and checklists stored on this device. Continue?',
+    detailsSummary: 'Technical details (for a bug report)',
+  },
+
   home: {
     subtitle: 'Your Cape York trips',
     yourTripsLabel: 'Your trips',

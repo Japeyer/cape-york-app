@@ -413,7 +413,13 @@ export function saveTripStore(store) {
 export function loadTripStore() {
   const existing = readStore()
   if (existing) {
-    existing.trips = existing.trips.map(t => ({ ...t, config: mergeConfig(t.config) }))
+    // Defensiv: ein korrupter Store kann ungültige Trip-Einträge enthalten (null, kein Objekt,
+    // fehlende id — z.B. via manuellem localStorage-Edit oder abgebrochenem Schreibvorgang).
+    // Ohne diesen Filter würde `t.config` bei einem null-Eintrag einen TypeError werfen → weißer
+    // Bildschirm beim App-Start. Ungültige Einträge fliegen raus, fehlende Namen bekommen Default.
+    existing.trips = existing.trips
+      .filter(t => t && typeof t === 'object' && typeof t.id === 'string')
+      .map(t => ({ ...t, name: typeof t.name === 'string' && t.name ? t.name : defaultTripName(), config: mergeConfig(t.config) }))
     if (!existing.trips.some(t => t.id === existing.activeTripId)) {
       existing.activeTripId = existing.trips[0]?.id ?? null
     }

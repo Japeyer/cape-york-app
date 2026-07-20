@@ -5,6 +5,68 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-20 (bc) — Bug-Resilienz gegen Fremdnutzung: Absturz-Netz + UI-Fuzzer (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ich habe die Sorge, dass in der App versteckte Bugs existieren, die
+ich bis jetzt nicht entdeckt habe und bei fremden Anwendern zu Fehlern führen → schlechte User-
+Experience → schlechte Bewertungen, die die App schon in der Startphase vernichten. Wie angehen?"
+
+**Leitidee:** Man findet nie ALLE Bugs. Zwei-Fronten-Strategie: (1) Schaden begrenzen — kein Bug
+darf tödlich sein; (2) Wahrscheinlichkeit senken — die Interaktions-Fläche testen. Der Sicherheits-
+Sweep (ba) deckt die Generator-Logik ab; hier die vier Fremdnutzungs-Zonen, die er NICHT abdeckt:
+UI-Interaktion, gespeicherter State, Fehler-Resilienz, Klick-Chaos.
+
+**① Globales Absturz-Netz — `ErrorBoundary.jsx`:** In `main.jsx` um `<App/>` gelegt. Fängt jeden
+Render-/Lifecycle-Crash und zeigt statt weißem Bildschirm eine Recovery-UI (Try again / Reset app +
+einklappbare Fehlermeldung für einen freiwilligen Bug-Report). Bewusst mit INLINE-Styles (ein
+Sicherheitsnetz darf nicht von externem CSS abhängen), Text aus `S.error` (i18n-ready), kein
+Netzwerk/Auto-Upload (Privacy-Prinzip). Verwandelt jeden noch unentdeckten Render-Bug von „App tot
+→ 1-Stern" in „Nutzer klickt weiter".
+
+**② Persistenz-Härtung — echter Fund in `loadTripStore`:** Ein korrupter Store mit `null`-Trip-
+Eintrag (`{"trips":[null]}`, z.B. durch abgebrochenen Schreibvorgang/manuellen Edit) ließ `t.config`
+einen TypeError werfen → weißer Bildschirm beim App-Start. Fix: ungültige Trip-Einträge (null,
+kein Objekt, fehlende id) werden gefiltert, fehlende Namen bekommen Default. `mergeConfig` und
+`readStore` waren bereits robust (try/catch, Typ-Checks). +9 Tests in neuer `useStorage.storage.test.js`
+(jsdom, korrupter localStorage: kaputtes JSON, trips kein Array, Müll-Einträge, primitive config, …).
+
+**③ Error-Boundary-Test — `ErrorBoundary.test.jsx` (4):** werfende Kind-Komponente → Recovery-UI
+statt weißem Bildschirm; Buttons crashen beim Klick nicht; Fehlermeldung in den Details.
+
+**④ UI-Fuzzer + Flow-Tests — `App.robustness.test.jsx` (11):**
+- 3 Flow-Tests: Leerstart-CTA, Create→Tutorial→Configurator, About/Account öffnen.
+- Fuzzer, DETERMINISTISCH (mulberry32-PRNG → reproduzierbar): 5 Seeds × 60 Klicks ab Leerstart +
+  3 Seeds × 70 Klicks mit vorab geseedetem aktivem Trip (erreicht Menu/Recipes/Shopping/Stock +
+  Swap-/Meal-Status-/Rezept-Editor-Sheets — die interaktionsreichste Ebene). Klickt über
+  `document.body`, um Portale (Sheets/Overlays) einzuschließen.
+- Fängt **Render-Crashes** (via ErrorBoundary-Marker) UND **Handler-Crashes** (try/catch um `act`),
+  jeweils mit der **reproduzierbaren Klick-Sequenz** in der Fehlermeldung.
+
+**Schärfe empirisch bewiesen (Mutations-Test):** ein `throw` in `MenuTab` ließ alle Fuzzer sofort
+rot werden — mit exakter Klick-Sequenz — und belegte zugleich, dass die Fuzzer die tiefen Tabs
+tatsächlich erreichen (Empty-Start-Fuzzer klickte sich über den kompletten Configurator bis
+„Generate plan"). Danach revertiert.
+
+**Flakiness gefixt:** 1 seltener Fehler beim ersten vollen Lauf unter CPU-Last. Ursache am
+wahrscheinlichsten der per-Klick-„leerer-Screen"-Check (transienter View-Wechsel unter Last) →
+ans Test-Ende verschoben; die deterministische Crash-Erkennung bleibt nach jedem Klick. Seither
+mehrfach stabil grün.
+
+**Keine neue Dependency:** interaktive Tests via `react-dom/client` + `act` (React 18.3) +
+`// @vitest-environment jsdom`-Docblock (jsdom war bereits devDep) — konsistent mit dem bewussten
+Verzicht auf @testing-library in `RecipesTab.test.jsx` (CLAUDE.md).
+
+**Bewusst NICHT gemacht:** Kein Crash-Reporting-SDK (bräche „keine Datensammlung") — Vorschlag für
+später: lokales, vom Nutzer freiwillig teilbares Fehler-Log. **Ehrliche Grenzen:** Error Boundaries
+fangen keine Fehler in Event-Handlern/async-Code (dafür lokales try/catch + der Fuzzer-try/catch);
+der Fuzzer deckt button-/kalendertag-erreichbare Zustände ab, keine Freitext-Eingaben.
+
+**Ergebnis:** 362 → **386 Tests grün** (+24: 9 storage, 4 error-boundary, 11 robustness). Build grün.
+Neue Dateien: `ErrorBoundary.jsx`, `ErrorBoundary.test.jsx`, `useStorage.storage.test.js`,
+`App.robustness.test.jsx`. Geändert: `main.jsx`, `strings.js` (S.error), `useStorage.js` (loadTripStore-Filter).
+
+---
+
 ## 2026-07-19 (bb) — Custom-Kalorien: defensive Klemmung + Sweep-Abdeckung (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Wie sieht es aus, wenn die Personen nicht mittlere Kalorien angeben,
