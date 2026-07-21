@@ -5,6 +5,50 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-21 (bd) — Gratis-Launch-Flag + Play-Billing-Architektur vorbereitet (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Bereite das Billing vor, aber ich denke, für den ersten Release ist es
+am besten, die App gratis auf den Markt zu bringen, bis sie einige Downloads hat."
+
+**Recherche (belegt, aktuell):**
+- Offizieller Google-Weg = **Play Billing Library** (aktuell v9, Mai 2026). **Acknowledge des Kaufs
+  binnen 3 Tagen ist Pflicht** — sonst Auto-Refund und der Nutzer verliert den Zugang. Serverseitige
+  Verifikation ist „stark empfohlen", aber nicht technisch erzwungen (v.a. bei Einmalkäufen).
+- Gängige Praxis: RevenueCat/Adapty sind der De-facto-Standard, aber ihr Kernwert (Abo-Lifecycle,
+  RTDN, Cross-Platform) zielt auf das, was dieses Produkt NICHT hat.
+
+**Entscheidung:** Für dieses Produkt passt **Einmalkauf** (kein Abo → offline-tauglich: einmal
+verifizieren, dauerhaft gültig, kein periodischer Online-Check) + **direktes, client-side Play
+Billing**. Damit: kein Backend, kein externer Anbieter, keine eigenen Accounts nötig — Play bindet
+den Kauf ans Google-Konto, Restore via `queryPurchases()` (liest den on-device-Cache, offline-fähig).
+
+**Umsetzung — Flag statt Wegwerf-Code:**
+- `MONETIZATION_ENABLED = false` in `premium.js`. Für den ersten Release AUS → App komplett gratis.
+- `isPremium()` von `hasActiveLicense()` getrennt: `isPremium()` = „sind Features frei?" (bei
+  Monetization-aus IMMER true), `hasActiveLicense()` = „hat der Nutzer eine Lizenz aktiviert?" (reine
+  Kauf-Frage). Dokumentierter Andockpunkt: hier kommt später `hasPlayBillingEntitlement()` dazu.
+- `App.jsx`: der 👤-Kauf/Account-Einstieg ist an den Flag gekoppelt → bei Gratis-Launch ausgeblendet
+  (kein toter Premium-Bezug in der UI). Premium-Views bleiben im Code für Stufe 2.
+- `checkout.js`: `PREMIUM_PRODUCT_ID`-Konstante (`cape_york_premium_unlock`, Managed product/
+  Einmalkauf), `getCheckout()` liefert `type:'disabled'` bei Monetization-aus, und der native
+  Play-Billing-Flow ist als **dokumentierter Andockpunkt** hinterlegt (purchase → acknowledge ≤3 Tage
+  → lokales Entitlement → queryPurchases-Restore; Server-Verifikation optional/nachrüstbar).
+
+**Bewusst NICHT gemacht:** Kein Capacitor/Billing-Plugin installiert (Capacitor fehlt noch; das echte
+Plugin ist Stufe 2). Diese Runde ist reine Vorbereitung: Flag + saubere Entitlement-Trennung +
+Architektur-Andockpunkte + Doku — alles code-unabhängig stabil, nichts muss später erneuert werden.
+
+**Doku:** `RELEASE-CHECKLIST.md` **Ebene E** = kompletter Aktivierungspfad (Flag umlegen → Capacitor →
+Play-Console-Produkt → Plugin → Kauf/Acknowledge/Restore), inkl. 3-Tage-Acknowledge-Fallstrick und
+der Offline-Regel: Premium nie durch fehlende Online-Verifikation sperren.
+
+**Tests:** License-Verwaltungs-Tests auf `hasActiveLicense()` umgestellt (isPremium() ist bei
+Gratis-Launch immer true); +3 Flag-Tests (inkl. Guard „MONETIZATION_ENABLED ist AUS", der beim
+Aktivieren bewusst rot wird). 386 → **389 Tests grün**, Build grün. Geändert: `premium.js`,
+`premium.test.js`, `App.jsx`, `checkout.js`, `RELEASE-CHECKLIST.md`.
+
+---
+
 ## 2026-07-20 (bc) — Bug-Resilienz gegen Fremdnutzung: Absturz-Netz + UI-Fuzzer (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Ich habe die Sorge, dass in der App versteckte Bugs existieren, die

@@ -20,6 +20,7 @@
 // deployed bis User Stripe-Account angelegt hat).
 
 import { S } from '../strings.js'
+import { MONETIZATION_ENABLED } from './premium.js'
 
 // ── Konfiguration ────────────────────────────────────────────────
 
@@ -43,6 +44,12 @@ export const PRICE = {
   currency: 'AUD',
   display: 'AUD$15.99',
 }
+
+// Play-Console-Produkt-ID des Einmalkaufs („Premium unlock"). Muss identisch in der Play Console
+// angelegt werden (Managed product, kein Abo — passt zur Offline-Natur: einmal verifizieren, dauerhaft
+// gültig, kein periodischer Online-Check). Wird vom Play-Billing-Plugin bei purchase/queryPurchases
+// referenziert. Platzhalter bis das In-App-Produkt angelegt ist.
+export const PREMIUM_PRODUCT_ID = 'cape_york_premium_unlock'
 
 // ── Plattform-Erkennung ───────────────────────────────────────────
 
@@ -73,24 +80,36 @@ function hasStripeLink() {
 // Handler für native). UI-Code muss nicht zwischen den Pfaden unterscheiden,
 // nur zwischen „Link öffnen" vs. „Async-Flow starten".
 export function getCheckout() {
-  // 1. Native Play-Billing — Stufe 2, deferred.
+  // 0. Gratis-Launch: Monetarisierung aus → gar kein Kaufweg. Die App ist vollständig frei
+  //    (isPremium() === true), der Kauf-/Account-Einstieg ist in der UI ausgeblendet.
+  if (!MONETIZATION_ENABLED) {
+    return { type: 'disabled' }
+  }
+  // 1. Native Play-Billing — Stufe 2, sobald Capacitor + Plugin + Play-Console-Produkt da sind.
   if (isNative()) {
     return {
       type: 'native',
       execute: async () => {
-        // Capacitor-Plugin (z.B. @squareetlabs/capacitor-google-play-billing)
-        // wird hier eingehängt, sobald Stufe 2 startet. Bis dahin Fallback.
+        // ── ANDOCKPUNKT Play Billing (Stufe 2) ──────────────────────────────────────
+        // Offizieller Google-Flow mit einem Capacitor-Billing-Plugin:
+        //   1. plugin.purchase({ productId: PREMIUM_PRODUCT_ID })      → Kauf-Dialog
+        //   2. bei Erfolg: plugin.acknowledge(purchaseToken)           → PFLICHT innerhalb 3 Tagen,
+        //      sonst erstattet Google automatisch zurück und der Nutzer verliert den Zugang!
+        //   3. Entitlement lokal setzen (localStorage) → offline-fähig.
+        //   4. Restore: plugin.queryPurchases() beim App-Start liest den vom Play Store on-device
+        //      gecachten Besitzstand (funktioniert ohne Netz) → isPremium() prüft das mit.
+        // Serverseitige Token-Verifikation ist von Google „stark empfohlen", aber für einen
+        // günstigen Einmalkauf optional/nachrüstbar (RevenueCat o. eigenes Backend).
         return { ok: false, reason: 'native-billing-not-implemented' }
       },
     }
   }
-  // 2. Stripe Payment Link — Stufe 1b, sobald STRIPE_PAYMENT_LINK gesetzt.
+  // 2. Stripe Payment Link — Web/PWA-Pfad, sobald STRIPE_PAYMENT_LINK gesetzt.
   if (hasStripeLink()) {
     return { type: 'stripe', url: STRIPE_PAYMENT_LINK }
   }
-  // 3. Kein In-App-Kaufpfad konfiguriert (kein Stripe, kein Play-Billing) → Kauf nicht verfügbar.
-  //    Früher gab es hier einen mailto-Fallback an eine private Adresse — bewusst entfernt
-  //    (keine Identität/private Kontaktdaten in der App). Lizenzschlüssel-Aktivierung bleibt möglich.
+  // 3. Kein In-App-Kaufpfad konfiguriert → Kauf nicht verfügbar (Lizenzschlüssel-Aktivierung bleibt).
+  //    Früher mailto-Fallback an eine private Adresse — bewusst entfernt (keine Identität in der App).
   return { type: 'unavailable' }
 }
 

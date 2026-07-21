@@ -20,7 +20,7 @@ import {
   getTutorialSeen, setTutorialSeen,
 } from './hooks/useStorage.js'
 import { setUserRecipes } from './lib/recipe-pool.js'
-import { isPremium, FREE_LIMITS } from './lib/premium.js'
+import { isPremium, FREE_LIMITS, MONETIZATION_ENABLED } from './lib/premium.js'
 import { S } from './strings.js'
 import './App.css'
 
@@ -393,7 +393,10 @@ export default function App() {
   const isAccount = view === 'account'
   const isMap = view === 'map'
   const showBackBtn = !isHome
-  const showAccountBtn = isHome  // 👤-Icon nur auf Home — sonst Topbar überladen
+  // 👤-Icon nur auf Home — und nur wenn Monetarisierung aktiv ist. Beim Gratis-Launch
+  // (MONETIZATION_ENABLED=false) gibt es keinen Kauf/Account → Einstieg ausgeblendet,
+  // damit kein toter Premium-Bezug in der UI steht. Die Views bleiben im Code für Stufe 2.
+  const showAccountBtn = isHome && MONETIZATION_ENABLED
   const showAboutBtn = isHome
   const showMapBtn = MAP_ENABLED && isHome  // 🗺️-Icon nur auf Home — Map-View direkter Zugang
   const topbarTitle = isHome

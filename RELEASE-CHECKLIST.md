@@ -95,6 +95,33 @@ Aus `STATUS.md` — Privacy/Identitäts-Themen, die vor einem öffentlichen Stor
 
 ---
 
+## Ebene E — Monetarisierung (Stufe 2, NACH Traktion — bewusst nicht zum Launch)
+
+**Launch-Strategie:** Der erste Release geht **gratis** auf den Markt (Downloads/Reviews aufbauen).
+Monetarisierung ist als Feature-Flag vorbereitet und ausgeschaltet: `MONETIZATION_ENABLED = false`
+in `src/lib/premium.js`. Bei `false` ist `isPremium()` immer `true` (alle Features frei) und der
+Kauf-/Account-Einstieg (👤) ist ausgeblendet. Die Premium-Views bleiben im Code.
+
+### Wenn Premium später aktiviert werden soll
+- [ ] `MONETIZATION_ENABLED` auf `true` — schaltet Free/Premium-Split + Kauf-Einstieg wieder ein.
+      (Der Test „MONETIZATION_ENABLED ist AUS" wird dann bewusst rot → Erinnerung, die Erwartungen
+      + das Play-Billing-Andocken zu aktualisieren.)
+- [ ] Capacitor + Android-Build stehen (Ebene A dieser Datei / Stufe 2).
+- [ ] Play Console: **Merchant-Account** (Bank/Steuer) + **In-App-Produkt** `cape_york_premium_unlock`
+      als **Managed product / Einmalkauf** anlegen (kein Abo — passt zur Offline-Natur).
+- [ ] Capacitor-Billing-Plugin einhängen im Andockpunkt in `checkout.js` (`getCheckout()` native).
+- [ ] Kauf-Flow: `purchase(PREMIUM_PRODUCT_ID)` → **`acknowledge()` innerhalb 3 Tagen** (sonst
+      erstattet Google automatisch zurück!) → Entitlement lokal setzen.
+- [ ] **Restore**: `queryPurchases()` beim Start liest den on-device gecachten Besitzstand
+      (offline-fähig) → in `isPremium()` als zweite Entitlement-Quelle einhängen.
+- [ ] Entscheidung Fälschungsschutz: client-only (ausreichend für günstigen Einmalkauf) vs.
+      RevenueCat/Backend (nachrüstbar). Jede Backend-Variante braucht einen `CHANGELOG`-Eintrag
+      (relativiert das „kein Backend"-Prinzip aus `PRODUCT.md`).
+- [ ] Offline-Regel einhalten: Premium **nie** durch fehlende Online-Verifikation sperren —
+      offline dem letzten bekannten Status vertrauen, online opportunistisch re-syncen.
+
+---
+
 ### Kurzfassung für „go / no-go"
 
 > **Eigen-Trip:** Ebene A + B grün **und** Ebene C vollständig abgehakt → die App fliegt mit.

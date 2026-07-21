@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
-  isLicenseValid, activateLicense, deactivate, isPremium,
+  isLicenseValid, activateLicense, deactivate, isPremium, hasActiveLicense, MONETIZATION_ENABLED,
   activeLicenseKey, formatLicenseDisplay,
 } from './premium.js'
 
@@ -38,31 +38,33 @@ describe('License-Key-Verifikation', () => {
   })
 })
 
-describe('Activate / Deactivate / Status', () => {
+describe('Activate / Deactivate / License-Status', () => {
   beforeEach(() => {
     localStorage.clear()
   })
 
-  it('isPremium() ohne Storage = false', () => {
-    expect(isPremium()).toBe(false)
+  // Diese Tests prüfen die reine Kauf-/Lizenz-Logik (hasActiveLicense), unabhängig vom
+  // Monetarisierungs-Flag — sonst würde der Gratis-Launch (isPremium()===true) sie verdecken.
+  it('hasActiveLicense() ohne Storage = false', () => {
+    expect(hasActiveLicense()).toBe(false)
   })
 
-  it('activateLicense() schreibt Storage und schaltet Premium frei', async () => {
+  it('activateLicense() schreibt Storage und aktiviert die Lizenz', async () => {
     expect(await activateLicense(VALID_KEYS[0])).toBe(true)
-    expect(isPremium()).toBe(true)
+    expect(hasActiveLicense()).toBe(true)
     expect(activeLicenseKey()).toBeTruthy()
   })
 
   it('activateLicense() lehnt ungültige Codes ab und ändert nichts', async () => {
     expect(await activateLicense('CY26-AAAA-AAAA-AAAA')).toBe(false)
-    expect(isPremium()).toBe(false)
+    expect(hasActiveLicense()).toBe(false)
   })
 
-  it('deactivate() entfernt Premium-Status', async () => {
+  it('deactivate() entfernt den Lizenz-Status', async () => {
     await activateLicense(VALID_KEYS[1])
-    expect(isPremium()).toBe(true)
+    expect(hasActiveLicense()).toBe(true)
     deactivate()
-    expect(isPremium()).toBe(false)
+    expect(hasActiveLicense()).toBe(false)
     expect(activeLicenseKey()).toBeNull()
   })
 
@@ -74,5 +76,24 @@ describe('Activate / Deactivate / Status', () => {
   it('formatLicenseDisplay returns "" für ungültige Eingabe', () => {
     expect(formatLicenseDisplay('')).toBe('')
     expect(formatLicenseDisplay('invalid')).toBe('')
+  })
+})
+
+describe('Monetarisierungs-Flag (Gratis-Launch)', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('MONETIZATION_ENABLED ist für den ersten Release AUS', () => {
+    // Bewusster Guard: wird beim Aktivieren der Monetarisierung rot und erinnert daran,
+    // die isPremium()-Erwartungen hier + das Play-Billing-Andocken zu aktualisieren.
+    expect(MONETIZATION_ENABLED).toBe(false)
+  })
+
+  it('isPremium() ist bei deaktivierter Monetarisierung immer true — alle Features frei', () => {
+    expect(isPremium()).toBe(true)                 // ohne jeden Kauf
+  })
+
+  it('bei Gratis-Launch bleibt der Kauf-Status getrennt (isPremium true, aber keine Lizenz)', () => {
+    expect(hasActiveLicense()).toBe(false)         // niemand hat gekauft …
+    expect(isPremium()).toBe(true)                 // … trotzdem alles frei
   })
 })

@@ -15,6 +15,15 @@
 
 const STORAGE_KEY = 'premium_v1'
 
+// ── Monetarisierungs-Flag (Launch-Strategie) ─────────────────────
+// BEWUSST AUS für den ersten Release: die App kommt GRATIS auf den Markt, um Downloads,
+// Reviews und Traktion aufzubauen. Bei `false` sind ALLE Premium-Features frei (isPremium()
+// → immer true), und der Kauf-/Account-Einstieg wird in der UI ausgeblendet (App.jsx).
+// Umlegen auf `true` aktiviert den Free/Premium-Split wieder — zusammen mit dem Play-Billing-
+// Plugin (Stufe 2, siehe checkout.js) und einem Play-Console-Produkt. Kein Code-Umbau nötig,
+// nur dieser Schalter + das Plugin-Andocken in isPremium()/checkout.js.
+export const MONETIZATION_ENABLED = false
+
 // SHARED SECRET — dasselbe in scripts/generate-license.mjs.
 // Bei Compromise: Secret rotieren + neue Codes ausstellen, alte Codes
 // werden im Format weiter erkannt aber bei Re-Verifikation abgelehnt.
@@ -135,14 +144,14 @@ export function deactivate() {
   try { localStorage.removeItem(STORAGE_KEY) } catch {}
 }
 
-// Liest den aktuellen Premium-Status synchron aus localStorage.
-// Macht KEINE Re-Verifikation der Checksum bei jedem Read — wäre async und
-// würde zu komplexen Render-Patterns führen. Verifikation passiert beim
+// "Hat der Nutzer eine Lizenz aktiviert?" — die reine KAUF-Frage (Web/PWA-Lizenzschlüssel,
+// localStorage-Key). Bewusst getrennt von isPremium(), damit das Monetarisierungs-Flag den
+// tatsächlichen Kauf-Status nicht verfälscht (z.B. für die Anzeige im AccountTab).
+// Macht KEINE Re-Verifikation der Checksum bei jedem Read — Verifikation passiert beim
 // Aktivieren; danach gilt der Eintrag als trusted bis zum Deaktivieren.
-// Risiko: User editiert localStorage manuell. Akzeptabel — wer das Browser-
-// DevTools öffnet, will offensichtlich Premium "ohne zu bezahlen", und das
-// ist eine persönliche Entscheidung in einem Indie-Produkt.
-export function isPremium() {
+// Risiko: User editiert localStorage manuell. Akzeptabel — wer das Browser-DevTools öffnet,
+// will offensichtlich Premium "ohne zu bezahlen"; persönliche Entscheidung in einem Indie-Produkt.
+export function hasActiveLicense() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return false
@@ -151,6 +160,18 @@ export function isPremium() {
   } catch {
     return false
   }
+}
+
+// "Sind die Premium-Features freigeschaltet?" — DIE zentrale Entitlement-Frage, die alle
+// UI-Gates konsumieren (App.jsx `premium = isPremium()`).
+//  - Monetarisierung AUS (Gratis-Launch): immer true → alles frei.
+//  - Monetarisierung AN: hängt am Kauf-Status.
+// Stufe-2-Andockpunkt für Play Billing: hier kommt die native Entitlement-Quelle dazu, z.B.
+//   return !MONETIZATION_ENABLED || hasActiveLicense() || hasPlayBillingEntitlement()
+// wobei hasPlayBillingEntitlement() den vom Play Store gecachten Besitzstand liest (offline-fähig).
+export function isPremium() {
+  if (!MONETIZATION_ENABLED) return true
+  return hasActiveLicense()
 }
 
 // Gibt den aktivierten Key zurück (für Anzeige in AccountTab) oder null.
