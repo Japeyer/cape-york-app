@@ -1172,6 +1172,25 @@ describe('generate() — cookEffort filtert den Plan', () => {
     expect(planMealEfforts(without.plan)).toEqual(planMealEfforts(withHigh.plan))
   })
 
+  // Präferenz-Fix: 'high' darf nicht nur ein erlaubtes Superset von 'low' sein (dann sähen beide
+  // gleich aus, weil einfache Rezepte in der Mehrzahl sind) — es soll aufwändige Rezepte ZUERST
+  // wählen. 'low' = 0 aufwändige, 'high' = viele (v.a. Dinner: 30 medium/2 hard gegen 18 easy).
+  it("cookEffort 'high' bevorzugt aktiv aufwändige Rezepte, 'low' bleibt bei 0", () => {
+    const nonEasy = eff => planMealEfforts(generate(defaults({ days: 16, cookEffort: eff })).plan)
+      .filter(e => e !== 'easy').length
+    expect(nonEasy('low')).toBe(0)
+    expect(nonEasy('high')).toBeGreaterThanOrEqual(10)
+  })
+
+  // Regressionsschutz: die Präferenz greift NUR bei 'high'. 'medium' bleibt ein natürlicher
+  // Mix (nutzt medium-Rezepte, erzwingt aber nicht alles aufwändig) — sonst wäre medium == high.
+  it("cookEffort 'medium' bleibt ein Mix aus easy + medium (keine high-artige Präferenz)", () => {
+    const efforts = planMealEfforts(generate(defaults({ days: 16, cookEffort: 'medium' })).plan)
+    expect(efforts.some(e => e === 'easy')).toBe(true)
+    expect(efforts.some(e => e === 'medium')).toBe(true)
+    expect(efforts.includes('hard')).toBe(false)
+  })
+
   it('config trägt cookEffort + cookEffortApplied', () => {
     const r = generate(defaults({ cookEffort: 'low' }))
     expect(r.config.cookEffort).toBe('low')

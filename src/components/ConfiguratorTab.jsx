@@ -222,6 +222,9 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
       : null,
     allergiesEnabled: config.allergiesEnabled === true,
     allergens: Array.isArray(config.allergens) ? [...config.allergens] : [],
+    // Interner Zufalls-Seed (bei Trip-Erstellung vergeben) — kein UI-Feld, aber durchreichen,
+    // damit er den Submit überlebt und der Trip seine eigene Rezept-Auswahl behält.
+    shuffleSeed: config.shuffleSeed,
     restaurantSlots: config.restaurantSlots ? { ...config.restaurantSlots } : {},
     overrides: config.overrides ? { ...config.overrides } : {},
     enabledStops: Object.fromEntries(

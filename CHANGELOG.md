@@ -5,6 +5,96 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-26 (bf) — Kochaufwand als Präferenz: „viel Aufwand" bevorzugt jetzt aufwändige Rezepte (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Die Kochaufwand-Funktion buggt — bei wenig und viel Aufwand tauchen
+dieselben Rezepte auf."
+
+**Untersuchung (empirisch belegt — KEIN Verkabelungs-Fehler):** Der Generator filterte korrekt
+(`low` = nur `effort:'easy'`, bewiesen: 0 medium/hard), und die Configurator-Verkabelung (Pill →
+`draft.cookEffort` → Submit → `generate`) war intakt. Zwei echte Ursachen: **(1) `high` war ein
+Ceiling, keine Präferenz** — easy+medium+hard *erlaubt*, aber die Waste-optimierte Auswahl
+bevorzugte Aufwand nicht → `low` ⊆ `high`, und da einfache Rezepte in der Mehrzahl sind, füllte
+„viel Aufwand" den Plan trotzdem großteils mit denselben einfachen Rezepten. **(2) Datenlage:**
+Frühstück 17 easy/2 medium, Lunch 26 easy/2 medium, Dinner 18 easy/**30 medium**/2 hard → nur Dinner
+kann überhaupt nennenswert differenzieren (Frühstück/Lunch mangels Rezepten kaum).
+
+**Entscheidung (der Entwickler via AskUserQuestion):** „Präferenz einbauen" (reine Code-Änderung,
+statt zusätzlich Rezepte zu schreiben).
+
+**Umsetzung (`generator.js`):**
+- Neue `effortPrefRank(recipe, cookEffort)` + `preferByEffort(pool, cookEffort)` — getrennt von
+  `effortAllowed` (Pool-**Membership**): die Präferenz bestimmt nur, was ZUERST gewählt wird.
+- **Nur `high` ändert sich:** `effortPrefRank` liefert für `high` `2 - EFFORT_RANK` (hard<medium<easy),
+  für `low`/`medium` konstant 0 (= No-op). So bleiben `low`/`medium`-Pläne **bit-identisch** zu vorher;
+  Gradient: low=nur easy · medium=natürlicher Mix · high=aufwändig-zuerst.
+- `chooseWaste` reduziert den Kandidaten-Pool via `preferByEffort` auf das aufwändigste noch
+  verfügbare Tier (Waste-Score entscheidet weiterhin INNERHALB des Tiers; erst wenn die aufwändigen
+  im Rahmen der Wiederhol-Regeln verbraucht sind, kommen einfachere). Greift für nonMeat **und**
+  Fleisch-Buckets (beide wählen über `chooseWaste`) — die Shelf-Life-Tier-Logik (Food-Safety) bleibt
+  bei Fleisch primär, Aufwand wirkt sekundär innerhalb des Tiers.
+- **Effekt (16d/2P/omnivore, empirisch):** Dinner low = 15 easy/0 medium → high = 1 easy/**12 medium/2 hard**.
+
+**Golden Master bewusst neu eingefroren** (`vitest -u`): der reale Trip nutzt `high`, dessen Dinner
+jetzt aufwändiger sind (z. B. Tag 8 „Tuna pasta", Tag 10 „Pasta Bolognese"). Struktur voll intakt
+(Fleisch-Cluster bleibt Fleisch, Leftover-Paare, Bamaga Tag 9, Pickup/Dropoff) — Review-Diff geprüft,
+keine Regression. **Frühstück/Lunch bleiben mangels aufwändiger Rezepte ähnlich** (Datenlimit, ehrlich
+kommuniziert; optionaler Folge-Schritt = mehr medium/hard-Frühstücke/Lunches).
+
+**Tests (+2 in `generator.test.js`):** `high` zieht ≥10 aufwändige Rezepte / `low` = 0; `medium`
+bleibt ein easy+medium-Mix (kein high-artiger Zwang). **398 Tests grün** (+2, Sicherheits-Sweep +
+Shuffle-Sweep unverändert), Build grün (1322.35 kB). Auf `fresh-start`, nicht gemerged.
+
+---
+
+## 2026-07-24 (be) — Automatische Rezept-Variation pro Trip (Zufalls-Seed) + Kärtchen-Optik verworfen (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** Zwei Dinge in einer Session. (1) In der vorigen Runde probeweise gebaute
+**Kärtchen-/Bild-Optik gefiel nicht** → komplett zurückgenommen (Git-Revert auf HEAD, kein Rest).
+(2) Wunsch: **kein Button**, sondern automatisch — „jedes Mal wenn eine Reise erstellt wird, sollen
+andere Rezepte (im Einklang mit den Anforderungen) auftauchen, sodass 2+ Trips nicht denselben Plan
+vorschlagen."
+
+**(1) Revert:** Alle 6 Dateien der Kärtchen-Runde via `git checkout HEAD --` zurückgesetzt (RecipesTab,
+strings, App.css, useStorage, STATUS, CHANGELOG). Vorheriger Zustand 1:1 wiederhergestellt.
+
+**(2) Seed-Engine (deterministisch pro Seed) + automatische Vergabe pro Trip:**
+- **Leitidee:** Alle HARTEN Restriktionen (Diät, Fleisch/Nicht-Fleisch, Allergene, Burner,
+  Fleisch-Cluster/Frische) stecken in der **Pool-Konstruktion + Cluster-Zuweisung**, NICHT in der
+  Auswahl-Reihenfolge. Ein Shuffle mischt nur die bereits GEFILTERTEN Pools → ändert, WELCHES
+  zulässige Rezept gepickt wird, nie OB es zulässig ist.
+- **`generator.js`:** neuer seeded PRNG **`mulberry32`** + `seededShuffle` (Fisher-Yates auf Kopie).
+  `buildSplitPool` nimmt `seed`: ist er gesetzt (>0), werden die Pools gemischt — nonMeat unter
+  Wahrung der **Strict-vor-Topping-Partition** (Topping-Allergen-Rezepte bleiben Notnagel; Core-
+  Allergene sind ohnehin nicht im Pool), meat voll (pickMeat re-bucketet später nach Shelf-Life-Tier
+  → Cluster/Frische-Zuweisung unberührt). `seed` durch `generatePlan` → `generate()` durchgereicht,
+  dort geklemmt (`Number.isFinite && >0`, sonst 0). **Ohne Seed = 0 = bit-identischer Default.**
+- **Automatische Vergabe (kein UI-Button):** `App.jsx` `genSeed()` vergibt bei **jeder
+  Trip-Erstellung** (`doCreateNew`) UND beim `resetAll` einen frischen Zufalls-Seed in die
+  Trip-Config (`{ ...defaultConfig(), shuffleSeed: genSeed() }`). Zwei Trips → zwei Seeds → andere
+  Rezepte. `seed: config.shuffleSeed` fließt in `generate()` (+ useMemo-Dep).
+- **Persistenz/Reload-Stabilität — bewusste Design-Entscheidung:** Der Seed sitzt NICHT in
+  `defaultConfig()` (das ist auch Fallback in `mergeConfig`/`loadConfig` → würde alten Trips bei
+  JEDEM Reload einen neuen Seed unterschieben und den Plan umwürfeln). Stattdessen einmalig bei der
+  Erstellung vergeben, in der Trip-Config gespeichert; `mergeConfig` reicht ihn unverändert durch
+  → beim Neuladen/Editieren stabil. `ConfiguratorTab` reicht `shuffleSeed` durch den `draft`
+  (kein UI-Feld), damit „Generate"/Edit ihn nicht droppt. **Alte Trips ohne Seed bleiben
+  deterministisch** (kein Umschalten des Bestands-Verhaltens).
+- **Tests:** `generator.shuffle.test.js` (+5) — Shuffle-Sweep 7 Seeds × 5 Configs × 3 Tage = 105
+  Trips prüft I1/I2/I3/I4/I6; „Veganer sieht über alle Seeds nur vegane Rezepte"; S1 kein-Seed==
+  Default, S2 Seed reproduzierbar, S3 verschiedene Seeds→verschiedene Pläne. `useStorage.test.js`
+  (+2) — mergeConfig hält shuffleSeed (Reload-Stabilität); defaultConfig/seed-freier Save bleiben
+  seed-frei.
+
+**Golden Master + Sicherheits-Sweep unverändert grün** (S1 garantiert: kein Seed → alter Plan).
+**396 Tests grün** (+7), Build grün (1322.11 kB). Auf `fresh-start`, nicht gemerged.
+
+**Verworfen (bewusst):** ein „🎲 Shuffle recipes"-Button im Menu — zuerst gebaut, dann auf Wunsch
+des Entwicklers entfernt zugunsten der automatischen Vergabe pro Trip (Button-Strings/CSS/Handler
+rückstandslos zurückgebaut).
+
+---
+
 ## 2026-07-21 (bd) — Gratis-Launch-Flag + Play-Billing-Architektur vorbereitet (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Bereite das Billing vor, aber ich denke, für den ersten Release ist es

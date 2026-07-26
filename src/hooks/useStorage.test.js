@@ -75,4 +75,19 @@ describe('mergeConfig — Sanitisierung pro Trip', () => {
     const m = mergeConfig({ days: 5, mealStatus: { 3: { ab: 'cooked' } } })
     expect(m.mealStatus[3].ab).toBe('cooked')
   })
+
+  // Der pro-Trip-Zufalls-Seed (bei Erstellung vergeben) muss den Reload überleben — sonst
+  // würde der Plan bei jedem Neuladen umwürfeln statt stabil zu bleiben.
+  it('behält shuffleSeed unverändert über mergeConfig (Reload-Stabilität)', () => {
+    const m = mergeConfig({ days: 16, shuffleSeed: 1234567 })
+    expect(m.shuffleSeed).toBe(1234567)
+  })
+
+  // Alte Trips (vor diesem Feature) haben KEINEN Seed — sie dürfen auch keinen bekommen,
+  // sonst bekämen sie beim Laden einen (deterministisch aus defaultConfig fehlenden) Wert
+  // untergeschoben. defaultConfig liefert bewusst keinen Seed → Generator-Default (kein Shuffle).
+  it('defaultConfig hat keinen shuffleSeed; ein Save ohne Seed bleibt seed-frei', () => {
+    expect(defaultConfig().shuffleSeed).toBeUndefined()
+    expect(mergeConfig({ days: 7 }).shuffleSeed).toBeUndefined()
+  })
 })

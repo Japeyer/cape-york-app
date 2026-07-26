@@ -106,13 +106,14 @@ export default function App() {
       bamagaStop: config.bamagaStop,
       bamagaDay: config.bamagaDay,
       allergens: effectiveAllergens,
+      seed: config.shuffleSeed,
       restaurantSlots: config.restaurantSlots,
       overrides: config.overrides,
       mealStatus: config.mealStatus,
       enabledStops: config.enabledStops,
       stopDays: config.stopDays,
     }),
-    [config.days, peopleHash, config.diet, config.cookEffort, config.burners, config.fridgeSize, config.fridgeCompressor, config.bamagaStop, config.bamagaDay, allergensHash, restaurantHash, overridesHash, mealStatusHash, enabledStopsHash, stopDaysHash, userRecipesHash]
+    [config.days, peopleHash, config.diet, config.cookEffort, config.burners, config.fridgeSize, config.fridgeCompressor, config.bamagaStop, config.bamagaDay, allergensHash, config.shuffleSeed, restaurantHash, overridesHash, mealStatusHash, enabledStopsHash, stopDaysHash, userRecipesHash]
   )
 
   // Override-Mutator für SwapSheet — schreibt direkt in cfg_v1 und triggert Re-Generate.
@@ -267,7 +268,7 @@ export default function App() {
   // vom ConfiguratorTab-Reset-Button benutzt.
   const resetAll = useCallback(() => {
     resetAllShoppingState()
-    const fresh = defaultConfig()
+    const fresh = { ...defaultConfig(), shuffleSeed: genSeed() }
     saveConfig(fresh)
     setConfig(fresh)
     setView('trip-config')
@@ -276,12 +277,17 @@ export default function App() {
 
   // ── Multi-Trip-Aktionen ──────────────────────────────────────────
   const genTripId = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
+  // Frischer Zufalls-Seed pro Trip: der Generator würfelt daraus eine andere (immer regel-
+  // konforme) Rezept-Auswahl. So bekommen zwei Trips nicht denselben Plan. Der Seed wird EINMAL
+  // bei der Erstellung vergeben und mit der Trip-Config persistiert → beim Neuladen/Editieren
+  // stabil (kein Umwürfeln bei jedem Reload). Positiv (>0), sonst greift der Generator-Default.
+  const genSeed = () => (Math.floor(Math.random() * 0x7fffffff) + 1) >>> 0
 
   // Trip tatsächlich anlegen + in den Configurator wechseln (ohne Limit-/Tutorial-Checks).
   const doCreateNew = useCallback(() => {
     const cur = loadTripStore()
     const id = genTripId()
-    const fresh = defaultConfig()
+    const fresh = { ...defaultConfig(), shuffleSeed: genSeed() }
     const next = createTripInStore(cur, { id, name: defaultTripName(), config: fresh })
     saveTripStore(next)
     setActiveNamespace(id)          // Namespace umschalten BEVOR Tabs den (leeren) State lesen

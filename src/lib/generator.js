@@ -71,6 +71,29 @@ export function effortAllowed(recipe, cookEffort) {
   return (EFFORT_RANK[recipe?.effort] ?? 0) <= ceil
 }
 
+// Auswahl-PRÄFERENZ nach Kochaufwand — getrennt von effortAllowed (das die Pool-MEMBERSHIP
+// bestimmt). effortAllowed sagt WAS erlaubt ist, effortPrefRank sagt was ZUERST gewählt wird.
+// Sonst ist 'high' nur ein erlaubtes Superset von 'low' → beide zeigen großteils dieselben
+// (mehrheitlich einfachen) Rezepte. Mit Präferenz zeigt "viel Aufwand" spürbar aufwändigere
+// Rezepte (v.a. Dinner — dort gibt es 30 medium/2 hard gegen 18 easy).
+//   high          → aufwändig zuerst: hard(0) < medium(1) < easy(2)
+//   medium / low  → keine Präferenz (Gradient: low=nur easy · medium=natürlicher Mix · high=aufwändig).
+//                   So ändert sich NUR das high-Verhalten; low/medium-Pläne bleiben bit-identisch.
+function effortPrefRank(recipe, cookEffort) {
+  if (cookEffort !== 'high') return 0
+  return 2 - (EFFORT_RANK[recipe?.effort] ?? 0)
+}
+
+// Reduziert einen Kandidaten-Pool auf das am meisten bevorzugte Aufwands-Tier, das noch
+// Rezepte enthält (Reihenfolge innerhalb des Tiers erhalten). Kein-Präferenz → unverändert.
+function preferByEffort(pool, cookEffort) {
+  if (pool.length < 2 || cookEffort !== 'high') return pool
+  let best = Infinity
+  for (const r of pool) { const p = effortPrefRank(r, cookEffort); if (p < best) best = p }
+  const top = pool.filter(r => effortPrefRank(r, cookEffort) === best)
+  return top.length ? top : pool
+}
+
 // Frischfleisch-Detektion (NUR was wirklich verdirbt — canned tuna, jerky, salami zählen nicht).
 const FRESH_MEAT_RX     = /\b(beef|chicken|lamb|bacon|sausages?|chorizo|pork|ham|turkey|duck|veal|bratwurst|prawns?|shrimp)\b/i
 const SHELF_STABLE_RX   = /\b(jerky|biltong|salami|canned|tinned|in oil|in brine)\b/i
@@ -202,6 +225,36 @@ function buildRecipePool({ diet, burners, allergens, cookEffort }) {
   return pool
 }
 
+// ── Seeded Zufall (für den optionalen "Shuffle recipes"-Modus) ─────────────────
+// Der Plan ist normalerweise deterministisch (kein Seed → bit-identischer Plan, Golden
+// Master + Eigen-Trip bleiben unverändert). Setzt der User bewusst einen Shuffle-Seed,
+// mischen wir die bereits GEFILTERTEN Pools durch — die harten Restriktionen (Diät,
+// Fleisch/Nicht-Fleisch, Allergene, Burner, Fleisch-Cluster) stecken in Pool-Membership
+// und Cluster-Zuweisung, NICHT in der Reihenfolge. Ein Shuffle ändert also nur, WELCHES
+// zulässige Rezept gepickt wird, nie ob es zulässig ist.
+//
+// mulberry32: kompakter, schneller Seed-PRNG. Gleicher Seed → gleiche Sequenz → gleicher
+// Plan (reproduzierbar; derselbe Seed liefert beim erneuten Generate exakt denselben Plan).
+function mulberry32(seed) {
+  let a = seed >>> 0
+  return function () {
+    a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+// Fisher-Yates auf einer Kopie (Original bleibt unangetastet).
+function seededShuffle(arr, rng) {
+  const a = arr.slice()
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp
+  }
+  return a
+}
+
 // Plan-Pool ist nach meat / nonMeat gesplittet. Beide bleiben pro Kategorie sortiert:
 // nonMeat nach Cooling (hoch zuerst, frisches Gemüse früh aufbrauchen), meat nach
 // Shelf-Life (short zuerst, da im Cluster dem Einkauf am nächsten zugewiesen).
@@ -212,7 +265,7 @@ function buildRecipePool({ diet, burners, allergens, cookEffort }) {
 // der "saubere" Strict-Pool für die Trip-Länge nicht reicht (= würde sonst stark
 // wiederholen). Pro Mahlzeit wird `_toppingAllergens` als Marker mitgegeben,
 // damit MealEntry/UI später den Warn-Banner anzeigen kann.
-function buildSplitPool({ diet, burners, allergens, cookEffort }) {
+function buildSplitPool({ diet, burners, allergens, cookEffort, seed }) {
   const meat    = { f: [], m: [], a: [] }
   const nonMeat = { f: [], m: [], a: [] }
   for (const r of RECIPES) {
@@ -246,6 +299,24 @@ function buildSplitPool({ diet, burners, allergens, cookEffort }) {
       (SHELF_RANK[meatShelfLife(a)] - SHELF_RANK[meatShelfLife(b)]) ||
       a.id.localeCompare(b.id)
     )
+  }
+
+  // Optionaler Shuffle: mischt die gefilterten Pools deterministisch pro Seed. Ohne Seed
+  // bleibt die obige Sortierung → Plan bit-identisch wie bisher.
+  //  - nonMeat: die Strict-vor-Topping-Partition bleibt erhalten (Topping-Allergen-Rezepte
+  //    sind weiterhin nur Notnagel bei erschöpftem Pool), gemischt wird NUR innerhalb jeder
+  //    Partition. So randomisiert der Shuffle die Auswahl, ohne die Allergen-Sicherheit zu
+  //    schwächen (Core-Allergene sind ohnehin gar nicht im Pool).
+  //  - meat: pickMeat re-bucketet später ohnehin nach Shelf-Life-Tier → ein voller Shuffle
+  //    ändert nur die Intra-Tier-Reihenfolge, nie die Cluster-/Frische-Zuweisung.
+  if (seed) {
+    const rng = mulberry32(seed)
+    for (const cat of ['f', 'm', 'a']) {
+      const strict  = nonMeat[cat].filter(r => !isToppingFlagged(r))
+      const topping = nonMeat[cat].filter(r =>  isToppingFlagged(r))
+      nonMeat[cat] = [...seededShuffle(strict, rng), ...seededShuffle(topping, rng)]
+      meat[cat] = seededShuffle(meat[cat], rng)
+    }
   }
   return { meat, nonMeat }
 }
@@ -444,8 +515,8 @@ function recipePackKeys(recipe) {
 const LEFTOVER_BATCH = 1.6
 const LEFTOVER_MIN_GAP = 3
 
-function generatePlan({ days, diet, burners, bamagaActiveDay, fridge, groupF, allergens, cookEffort, restaurantSlots, overrides, mealStatus, specialAssignments }) {
-  const { meat, nonMeat } = buildSplitPool({ diet, burners, allergens, cookEffort })
+function generatePlan({ days, diet, burners, bamagaActiveDay, fridge, groupF, allergens, cookEffort, seed, restaurantSlots, overrides, mealStatus, specialAssignments }) {
+  const { meat, nonMeat } = buildSplitPool({ diet, burners, allergens, cookEffort, seed })
   const clusterDays = meatClusterDays(fridge, groupF)
   const meatMap = meatDayIndex({ days, bamagaActiveDay, clusterDays })
   const cairnsClusterStart = 1
@@ -510,6 +581,11 @@ function generatePlan({ days, diet, burners, bamagaActiveDay, fridge, groupF, al
     let pool = eligible
     if (!pool.length) pool = arr.filter(r => r.id !== avoidId)  // Pool erschöpft → Wiederholung nötig
     if (!pool.length) pool = arr                                // nur 1 Rezept → unvermeidbar
+    // Kochaufwand-Präferenz: bei "viel Aufwand" nur das aufwändigste noch verfügbare Tier
+    // betrachten (Waste-Score entscheidet weiterhin INNERHALB des Tiers). Erst wenn die
+    // aufwändigen Rezepte im Rahmen der Wiederhol-Regeln verbraucht sind, kommen einfachere.
+    // Bei low/medium ein No-op → deren Pläne bleiben unverändert.
+    pool = preferByEffort(pool, cookEffort)
     const start = idxRef[key] || 0
     let best = null, bestScore = -Infinity, bestOrd = 0
     for (let j = 0; j < pool.length; j++) {
@@ -1254,7 +1330,7 @@ function pruneDisabledStops(shopping, ctx) {
 
 // ── 8. Top-Level API ───────────────────────────────────────────
 
-export function generate({ days, people, diet, burners, fridgeSize, fridgeCompressor, bamagaStop, bamagaDay, allergens, cookEffort, restaurantSlots, overrides, mealStatus, enabledStops, stopDays }) {
+export function generate({ days, people, diet, burners, fridgeSize, fridgeCompressor, bamagaStop, bamagaDay, allergens, cookEffort, seed, restaurantSlots, overrides, mealStatus, enabledStops, stopDays }) {
   // Konfigurator ist System-Boundary → Eingaben hier klemmen.
   const D = Math.max(1, Math.min(31, Number(days) | 0))
   const peopleArr = Array.isArray(people) && people.length
@@ -1360,9 +1436,13 @@ export function generate({ days, people, diet, burners, fridgeSize, fridgeCompre
     bamagaActiveDay,
     meatAllowedDaysSet: new Set(meatAllowedDays),
   })
+  // Shuffle-Seed: reine Zahl > 0 aktiviert den Zufallsmodus. 0/ungültig/fehlend → kein
+  // Shuffle (deterministischer Default). Der Seed lebt in der Trip-Config (localStorage);
+  // "Shuffle recipes" im UI setzt einen neuen Seed und regeneriert.
+  const safeSeed = Number.isFinite(seed) && seed > 0 ? Math.floor(seed) : 0
   const plan = generatePlan({
     days: D, diet: dt, burners: bn, bamagaActiveDay, fridge, groupF: factor,
-    allergens: allergenList, cookEffort: ce,
+    allergens: allergenList, cookEffort: ce, seed: safeSeed,
     restaurantSlots: safeRestaurantSlots,
     overrides: safeOverrides,
     mealStatus: safeMealStatus,
