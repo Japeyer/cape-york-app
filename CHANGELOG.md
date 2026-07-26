@@ -43,7 +43,15 @@ kommuniziert; optionaler Folge-Schritt = mehr medium/hard-Frühstücke/Lunches).
 
 **Tests (+2 in `generator.test.js`):** `high` zieht ≥10 aufwändige Rezepte / `low` = 0; `medium`
 bleibt ein easy+medium-Mix (kein high-artiger Zwang). **398 Tests grün** (+2, Sicherheits-Sweep +
-Shuffle-Sweep unverändert), Build grün (1322.35 kB). Auf `fresh-start`, nicht gemerged.
+Shuffle-Sweep unverändert), Build grün (1322.35 kB).
+
+**Nachtrag (Deploy-Fix):** `fresh-start` wurde auf `main` gebracht (Force-Push, ersetzt die alte
+Identitäts-History). Der erste CI-Deploy schlug am Schritt `npm test` fehl: **kein Logik-Fehler,
+sondern Timeout** — der Sicherheits-Sweep A (864 volle `generate()`-Läufe) braucht auf den
+langsameren GitHub-Actions-Runnern ~7 s und riss Vitests Default-Timeout von 5000 ms (die
+Effort-Präferenz hatte den Sweep zusätzlich leicht verlangsamt). Fix: **globales `test.testTimeout`
+/`hookTimeout` = 30000 ms in `vite.config.js`** (schützt alle rechenintensiven Sweeps + den
+App-Fuzzer gegen CI-Schwankungen, fängt echte Hänger weiterhin ab). Auf `fresh-start` **und `main`**.
 
 ---
 

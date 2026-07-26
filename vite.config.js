@@ -41,6 +41,14 @@ const cspPlugin = {
 
 export default defineConfig({
   base: REPO_BASE,
+  // Vitest-Config: die Sicherheits-Sweeps (generator.safety.test.js: ~864 volle generate()-Läufe)
+  // und der App-Fuzzer sind bewusst rechenintensiv. Lokal ~4–5 s, auf den langsameren GitHub-
+  // Actions-Runnern reißen sie das Vitest-Default-Timeout von 5000 ms (Deploy schlug daran fehl).
+  // 30 s gibt großzügig Luft für CI-Schwankungen, fängt aber echte Endlos-Hänger weiterhin ab.
+  test: {
+    testTimeout: 30000,
+    hookTimeout: 30000,
+  },
   plugins: [
     react(),
     cspPlugin,
