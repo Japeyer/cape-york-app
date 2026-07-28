@@ -10,6 +10,7 @@ import {
 import TripCalendar from './TripCalendar.jsx'
 import DaySheet from './DaySheet.jsx'
 import PremiumGate from './PremiumGate.jsx'
+import { getConfigIntrosSeen, markConfigIntroSeen } from '../hooks/useStorage.js'
 import { parseISO, addDays } from '../lib/dates.js'
 import { ALLERGENS } from '../lib/allergens.js'
 import { REGION } from '../data/regions.js'
@@ -242,6 +243,28 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
   const hasRange = draft.days >= 1 && !!draft.startDate
   const update = (patch) => setDraft(d => ({ ...d, ...patch }))
 
+  // ── Wizard-Schritt-Steuerung ──────────────────────────────────────
+  const STEPS = S.config.steps           // [{key,title,intro}] × 3
+  const totalSteps = STEPS.length
+  const [step, setStep] = useState(0)
+  const curStep = STEPS[step]
+
+  // Schritt 1 (Datum) ist das Gate: ohne gewählten Zeitraum kein Weiter/kein Vorwärts-Sprung.
+  const canAdvance = step > 0 || hasRange
+  const goNext = () => { if (step < totalSteps - 1 && canAdvance) setStep(step + 1) }
+  const goBack = () => setStep(s => Math.max(0, s - 1))
+  // Punkte antippen: rückwärts immer, vorwärts nur wenn ein Zeitraum gewählt ist (sonst Gate umgangen).
+  const jumpTo = (i) => { if (i <= step || hasRange) setStep(i) }
+
+  // Kontextuelle Intro-Karte pro Schritt — erscheint beim ersten Betreten, wegklickbar, global
+  // in localStorage gemerkt (nur einmal pro Schritt, trip-übergreifend).
+  const [seenIntros, setSeenIntros] = useState(() => new Set(getConfigIntrosSeen()))
+  const dismissIntro = (key) => {
+    markConfigIntroSeen(key)
+    setSeenIntros(prev => new Set(prev).add(key))
+  }
+  const showIntro = !seenIntros.has(curStep.key)
+
   // Calendar-Range-Select: ruft das mit (startISO, days) wenn der User eine Range gewählt hat.
   // Bamaga-Day kommt aus 0.55-Heuristik wenn vorher noch nichts war; sonst auf neue Range geklemmt.
   // Restaurant-Slots/Overrides werden auf neue Trip-Länge gefiltert.
@@ -407,162 +430,221 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
   return (
     <div className="cfg-wrap">
       <div className="cfg-card">
-        <div className="cfg-title">
-          {isOnboarding ? S.config.welcome : S.config.editTitle}
-        </div>
-        <div className="cfg-sub">
-          {isOnboarding ? S.config.welcomeSub : S.config.editSub}
+        {/* Titel/Untertitel nur auf dem Einstiegs-Schritt — sonst übernimmt die Intro-Karte. */}
+        {step === 0 && (
+          <>
+            <div className="cfg-title">
+              {isOnboarding ? S.config.welcome : S.config.editTitle}
+            </div>
+            <div className="cfg-sub">
+              {isOnboarding ? S.config.welcomeSub : S.config.editSub}
+            </div>
+          </>
+        )}
+
+        {/* Schritt-Fortschritt: antippbare Punkte (vorwärts nur mit gewähltem Zeitraum) + Label. */}
+        <div className="cfg-steps">
+          <div className="cfg-steps-dots">
+            {STEPS.map((s, i) => (
+              <button
+                key={s.key}
+                className={`cfg-step-dot${i === step ? ' active' : ''}${i < step ? ' done' : ''}`}
+                onClick={() => jumpTo(i)}
+                disabled={i > step && !hasRange}
+                aria-label={s.title}
+                aria-current={i === step ? 'step' : undefined}
+              />
+            ))}
+          </div>
+          <div className="cfg-steps-label">
+            {S.config.wizard.stepOf({ cur: step + 1, total: totalSteps })} · {curStep.title}
+          </div>
         </div>
 
-        <div className="cfg-row">
-          <div className="cfg-row-head">
-            <div className="cfg-label">{S.config.daysLabel}</div>
-            <div className="cfg-hint">
-              {hasRange
-                ? S.config.daysSelected({ days: draft.days })
-                : S.config.daysNotSelected}
-            </div>
+        {/* Kontextuelle Erklärung — erscheint einmal beim ersten Betreten der Seite. */}
+        {showIntro && (
+          <div className="cfg-intro">
+            <div className="cfg-intro-body">{curStep.intro}</div>
+            <button className="cfg-intro-dismiss" onClick={() => dismissIntro(curStep.key)}>
+              {S.config.wizard.introDismiss}
+            </button>
           </div>
-          {hasRange && (
-            <button className="repick-btn" onClick={handleRepickDates}>
-              {S.config.repickDates}
+        )}
+
+        {/* ── Schritt 1: Datum & Route ── */}
+        {step === 0 && (
+          <div className="cfg-step-panel">
+            <div className="cfg-row">
+              <div className="cfg-row-head">
+                <div className="cfg-label">{S.config.daysLabel}</div>
+                <div className="cfg-hint">
+                  {hasRange
+                    ? S.config.daysSelected({ days: draft.days })
+                    : S.config.daysNotSelected}
+                </div>
+              </div>
+              {hasRange && (
+                <button className="repick-btn" onClick={handleRepickDates}>
+                  {S.config.repickDates}
+                </button>
+              )}
+            </div>
+
+            <TripCalendar
+              startDate={draft.startDate}
+              days={draft.days}
+              markedDays={markedDays}
+              restaurantSlots={draft.restaurantSlots}
+              onSelectRange={handleSelectRange}
+              onTapDay={handleTapDay}
+            />
+
+            {hasRange && (
+              <div className="cfg-calendar-tip">{S.config.calendarTip}</div>
+            )}
+          </div>
+        )}
+
+        {/* ── Schritt 2: Gruppe & Ernährung ── */}
+        {step === 1 && (
+          <div className="cfg-step-panel">
+            <GroupEditor
+              people={draft.people}
+              onChange={(people) => update({ people })}
+            />
+
+            <PillPicker
+              label={S.config.dietLabel}
+              options={DIETS}
+              optionMap={S.config.dietOptions}
+              value={draft.diet}
+              onChange={(v) => update({ diet: v })}
+            />
+
+            <PillPicker
+              label={S.config.allergiesLabel}
+              hint={S.config.allergiesHint}
+              options={ALLERGY_OPTS}
+              optionMap={S.config.allergiesOptions}
+              value={draft.allergiesEnabled ? 'yes' : 'no'}
+              onChange={(v) => update({ allergiesEnabled: v === 'yes' })}
+              locked={!premium}
+              onUpgrade={onUpgrade}
+            />
+
+            {draft.allergiesEnabled && premium && (
+              <div className="cfg-row">
+                <div className="cfg-row-head">
+                  <div className="cfg-label">{S.config.allergiesPickLabel}</div>
+                  <div className="cfg-hint">{S.config.allergiesPickHint}</div>
+                </div>
+                <div className="allergen-grid">
+                  {ALLERGENS.map(a => {
+                    const opt = S.config.allergenOptions[a]
+                    const active = draft.allergens.includes(a)
+                    const toggle = () => update({
+                      allergens: active
+                        ? draft.allergens.filter(x => x !== a)
+                        : [...draft.allergens, a],
+                    })
+                    return (
+                      <button
+                        key={a}
+                        className={`allergen-pill${active ? ' active' : ''}`}
+                        onClick={toggle}
+                      >
+                        <span className="allergen-pill-label">{opt.label}</span>
+                        {opt.sub && <span className="allergen-pill-sub">{opt.sub}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Schritt 3: Küche & Ausrüstung ── */}
+        {step === 2 && (
+          <div className="cfg-step-panel">
+            <PillPicker
+              label={S.config.effortLabel}
+              hint={S.config.effortHint}
+              options={COOK_EFFORT_OPTS}
+              optionMap={S.config.effortOptions}
+              value={draft.cookEffort}
+              onChange={(v) => update({ cookEffort: v })}
+            />
+
+            <PillPicker
+              label={S.config.burnersLabel}
+              hint={S.config.burnersHint}
+              options={BURNER_OPTS}
+              optionMap={S.config.burnersOptions}
+              value={draft.burners}
+              onChange={(v) => update({ burners: v })}
+            />
+
+            <PillPicker
+              label={S.config.fridgeLabel}
+              hint={S.config.fridgeHint}
+              options={FRIDGE_OPTS}
+              optionMap={S.config.fridgeOptions}
+              value={draft.fridgeSize}
+              onChange={(v) => update({ fridgeSize: v })}
+              locked={!premium}
+              onUpgrade={onUpgrade}
+            />
+
+            <PillPicker
+              label={S.config.compressorLabel}
+              hint={S.config.compressorHint}
+              options={COMPRESSOR_OPTS}
+              optionMap={S.config.compressorOptions}
+              value={draft.fridgeCompressor ? 'yes' : 'no'}
+              onChange={(v) => update({ fridgeCompressor: v === 'yes' })}
+              locked={!premium}
+              onUpgrade={onUpgrade}
+            />
+
+            {/* Special-Dinner-Preview vor dem Generieren — nutzt alle jetzt gesetzten Werte. */}
+            {hasRange && (() => {
+              const specialCount = estimateSpecialCount({
+                days: draft.days,
+                bamagaStop: draft.bamagaStop,
+                diet: draft.diet,
+                burners: draft.burners,
+                allergens: draft.allergens,
+                cookEffort: draft.cookEffort,
+              })
+              if (specialCount === 0) return null
+              return <div className="cfg-special-hint">{S.config.specialHint({ count: specialCount })}</div>
+            })()}
+          </div>
+        )}
+
+        {/* ── Navigation: Zurück · Weiter / Generieren ── */}
+        <div className="cfg-nav">
+          {step > 0
+            ? <button className="cfg-nav-back" onClick={goBack}>{S.config.wizard.back}</button>
+            : <span className="cfg-nav-spacer" />}
+          {step < totalSteps - 1 ? (
+            <button className="cfg-nav-next" onClick={goNext} disabled={!canAdvance}>
+              {S.config.wizard.next}
+            </button>
+          ) : (
+            <button
+              className="gen-btn cfg-nav-gen"
+              onClick={() => onSubmit({ ...draft, completed: true })}
+              disabled={!hasRange}
+            >
+              {cta}
             </button>
           )}
         </div>
 
-        <TripCalendar
-          startDate={draft.startDate}
-          days={draft.days}
-          markedDays={markedDays}
-          restaurantSlots={draft.restaurantSlots}
-          onSelectRange={handleSelectRange}
-          onTapDay={handleTapDay}
-        />
-
-        {hasRange && (
-          <div className="cfg-calendar-tip">{S.config.calendarTip}</div>
-        )}
-
-        {hasRange && (() => {
-          // Configurator-Preview: zeigt dem User vor "Generate" wieviele Special-Dinner
-          // sein Plan enthalten wird. Hängt von Trip-Länge × Bamaga-Stop × Pool-Verfügbarkeit
-          // (Diät/Burner/Allergens) ab — ohne Pool-Check würde der Hint „2 specials" zeigen
-          // obwohl der Generator 0 produziert (z.B. 1-Burner-Setup mit nur 3-Burner-Specials).
-          const specialCount = estimateSpecialCount({
-            days: draft.days,
-            bamagaStop: draft.bamagaStop,
-            diet: draft.diet,
-            burners: draft.burners,
-            allergens: draft.allergens,
-            cookEffort: draft.cookEffort,
-          })
-          if (specialCount === 0) return null
-          return <div className="cfg-special-hint">{S.config.specialHint({ count: specialCount })}</div>
-        })()}
-
-        <GroupEditor
-          people={draft.people}
-          onChange={(people) => update({ people })}
-        />
-
-        <PillPicker
-          label={S.config.dietLabel}
-          options={DIETS}
-          optionMap={S.config.dietOptions}
-          value={draft.diet}
-          onChange={(v) => update({ diet: v })}
-        />
-
-        <PillPicker
-          label={S.config.effortLabel}
-          hint={S.config.effortHint}
-          options={COOK_EFFORT_OPTS}
-          optionMap={S.config.effortOptions}
-          value={draft.cookEffort}
-          onChange={(v) => update({ cookEffort: v })}
-        />
-
-        <PillPicker
-          label={S.config.burnersLabel}
-          hint={S.config.burnersHint}
-          options={BURNER_OPTS}
-          optionMap={S.config.burnersOptions}
-          value={draft.burners}
-          onChange={(v) => update({ burners: v })}
-        />
-
-        <PillPicker
-          label={S.config.fridgeLabel}
-          hint={S.config.fridgeHint}
-          options={FRIDGE_OPTS}
-          optionMap={S.config.fridgeOptions}
-          value={draft.fridgeSize}
-          onChange={(v) => update({ fridgeSize: v })}
-          locked={!premium}
-          onUpgrade={onUpgrade}
-        />
-
-        <PillPicker
-          label={S.config.compressorLabel}
-          hint={S.config.compressorHint}
-          options={COMPRESSOR_OPTS}
-          optionMap={S.config.compressorOptions}
-          value={draft.fridgeCompressor ? 'yes' : 'no'}
-          onChange={(v) => update({ fridgeCompressor: v === 'yes' })}
-          locked={!premium}
-          onUpgrade={onUpgrade}
-        />
-
-        <PillPicker
-          label={S.config.allergiesLabel}
-          hint={S.config.allergiesHint}
-          options={ALLERGY_OPTS}
-          optionMap={S.config.allergiesOptions}
-          value={draft.allergiesEnabled ? 'yes' : 'no'}
-          onChange={(v) => update({ allergiesEnabled: v === 'yes' })}
-          locked={!premium}
-          onUpgrade={onUpgrade}
-        />
-
-        {draft.allergiesEnabled && premium && (
-          <div className="cfg-row">
-            <div className="cfg-row-head">
-              <div className="cfg-label">{S.config.allergiesPickLabel}</div>
-              <div className="cfg-hint">{S.config.allergiesPickHint}</div>
-            </div>
-            <div className="allergen-grid">
-              {ALLERGENS.map(a => {
-                const opt = S.config.allergenOptions[a]
-                const active = draft.allergens.includes(a)
-                const toggle = () => update({
-                  allergens: active
-                    ? draft.allergens.filter(x => x !== a)
-                    : [...draft.allergens, a],
-                })
-                return (
-                  <button
-                    key={a}
-                    className={`allergen-pill${active ? ' active' : ''}`}
-                    onClick={toggle}
-                  >
-                    <span className="allergen-pill-label">{opt.label}</span>
-                    {opt.sub && <span className="allergen-pill-sub">{opt.sub}</span>}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        <button
-          className="gen-btn"
-          onClick={() => onSubmit({ ...draft, completed: true })}
-          disabled={!hasRange}
-        >
-          {cta}
-        </button>
-
-        {!isOnboarding && onResetAll && (
+        {/* Reset (nur Edit-Modus) — auf dem letzten Schritt. */}
+        {step === totalSteps - 1 && !isOnboarding && onResetAll && (
           <div className="cfg-reset">
             <div className="cfg-reset-hint">{S.config.resetAllHint}</div>
             <button

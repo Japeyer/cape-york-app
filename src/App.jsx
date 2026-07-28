@@ -9,7 +9,6 @@ import RecipesTab from './components/RecipesTab.jsx'
 import InventoryTab from './components/InventoryTab.jsx'
 import InfoMapTab from './components/InfoMapTab.jsx'
 import ShoppingTab from './components/ShoppingTab.jsx'
-import TutorialOverlay from './components/TutorialOverlay.jsx'
 import { REGION } from './data/regions.js'
 import { generate } from './lib/generator.js'
 import {
@@ -17,7 +16,6 @@ import {
   loadTripStore, saveTripStore, setActiveNamespace, wipeTripVolatile, defaultTripName,
   getActiveTrip, createTripInStore, deleteTripFromStore, renameTripInStore, setActiveInStore,
   getUserRecipes, upsertUserRecipe, deleteUserRecipe,
-  getTutorialSeen, setTutorialSeen,
 } from './hooks/useStorage.js'
 import { setUserRecipes } from './lib/recipe-pool.js'
 import { isPremium, FREE_LIMITS, MONETIZATION_ENABLED } from './lib/premium.js'
@@ -189,8 +187,6 @@ export default function App() {
   // Das ist der neue "Source of Truth"-Einstieg. Tab-State wird nur in trip-active genutzt.
   const [view, setView] = useState('home')
   const [activeTab, setActiveTab] = useState('menu')
-  // Einmaliges Onboarding-Tutorial beim allerersten "Create trip".
-  const [showTutorial, setShowTutorial] = useState(false)
 
   // Sprung zu einem bestimmten Rezept (aus MenuTab "See recipe" oder dem "Wo verwendet?"-Dropdown
   // in der Einkaufsliste): Recipes-Tab öffnen + das Rezept fokussiert aufklappen/scrollen.
@@ -298,26 +294,16 @@ export default function App() {
   }, [])
 
   // Neuen Trip anlegen. Premium: unbegrenzt; Free: max FREE_LIMITS.maxTrips → sonst Upgrade-Seite.
-  // Beim ALLERERSTEN Mal (Tutorial noch nie gesehen) zuerst das Onboarding zeigen, dann anlegen.
+  // Die Erklärungen laufen jetzt kontextuell im Configurator-Wizard (Intro-Karte pro Schritt),
+  // nicht mehr als Vorab-Carousel.
   const handleCreateNew = useCallback(() => {
     const cur = loadTripStore()
     if (!premium && cur.trips.length >= (FREE_LIMITS.maxTrips ?? 1)) {
       setView('premium-info')
       return
     }
-    if (!getTutorialSeen()) {
-      setShowTutorial(true)
-      return
-    }
     doCreateNew()
   }, [premium, doCreateNew])
-
-  // Tutorial beendet (letzter Slide ODER "Skip") → als gesehen markieren und Trip anlegen.
-  const handleTutorialDone = useCallback(() => {
-    setTutorialSeen(true)
-    setShowTutorial(false)
-    doCreateNew()
-  }, [doCreateNew])
 
   // Aktiven Trip + Namespace umschalten und dessen Config laden.
   const switchToTrip = useCallback((id, targetView) => {
@@ -572,8 +558,6 @@ export default function App() {
           ))}
         </nav>
       )}
-
-      {showTutorial && <TutorialOverlay onDone={handleTutorialDone} />}
     </div>
   )
 }

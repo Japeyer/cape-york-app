@@ -87,18 +87,16 @@ describe('App-Flow — zentrale Pfade erreichbar', () => {
     expect(findByText(/plan your cape york trip/i)).toBeTruthy()
   })
 
-  it('Create → Tutorial → Configurator ist ohne Crash durchlaufbar', () => {
+  it('Create → Configurator-Wizard (Schritt 1) ist ohne Crash erreichbar', () => {
     mount(<ErrorBoundary><App /></ErrorBoundary>)
-    // 1. Trip anlegen (erster Create zeigt zuerst das Onboarding-Tutorial)
+    // Trip anlegen — führt jetzt DIREKT in den Configurator-Wizard (kein Vorab-Tutorial mehr;
+    // die Erklärungen laufen kontextuell pro Wizard-Seite).
     act(() => findByText(/plan your cape york trip/i).click())
-    // 2. Tutorial überspringen
-    const skip = findByText(/^skip$/i) || findByText(/let's plan/i)
-    expect(skip).toBeTruthy()
-    act(() => skip.click())
-    // 3. Configurator ist erreicht: der Onboarding-CTA-Text ist da (Button ist bis zur
-    //    Datums-Range disabled, daher via textContent geprüft, nicht via clickables).
+    // Wizard Schritt 1 ist erreicht: Fortschritts-Titel + "Next" da (Generate erst auf Schritt 3,
+    // "Next" bis zur Datums-Range disabled — via textContent geprüft, nicht via Klick).
     expect(boundaryTripped()).toBe(false)
-    expect(container.textContent).toContain(S.config.generateCta)
+    expect(container.textContent).toContain(S.config.steps[0].title)
+    expect(container.textContent).toContain(S.config.wizard.next)
   })
 
   it('About- und Account-Ansicht öffnen ohne Crash', () => {

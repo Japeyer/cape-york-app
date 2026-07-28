@@ -5,6 +5,44 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-28 (bg) — Configurator als geführter 3-Schritt-Wizard + kontextuelle Intros pro Seite (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Für eine bessere Führung durch die App wären unterschiedliche Seiten
+am besten — z. B. Datum + Zwischenstopps auf der ersten Seite, dann per Next weiter. Sinnvoll
+gruppieren (nicht eine Seite pro Möglichkeit). Und das Tutorial evtl. beim ersten Betreten der
+jeweiligen Seite." **Entscheidungen (AskUserQuestion):** 3-Seiten-Aufteilung + „Intro pro Wizard-
+Seite jetzt, First-Visit-Tipps auf Menü/Rezepte/Einkauf/Stock später".
+
+**Configurator-Wizard (`ConfiguratorTab.jsx`):** die bisher EINE lange Seite (~11 Einstellungs-
+gruppen) ist jetzt ein geführter Drei-Schritt-Flow:
+- **Schritt 1 — Dates & route:** Kalender (Zeitraum) + Stopps/Restaurant-Tage (per Tag-Tap → DaySheet).
+- **Schritt 2 — Group & diet:** Personen-Editor + Diät + Allergien (+ Allergen-Picker).
+- **Schritt 3 — Cooking & gear:** Kochaufwand + Kochstellen + Kühlschrank + Kompressor + Special-
+  Preview → **Generate/Update**.
+- **Navigation:** antippbare Fortschritts-Punkte (vorwärts nur mit gewähltem Zeitraum) + „Step X of 3
+  · Titel"; Bottom-Nav „← Back" / „Next →"; letzte Seite = Generate. Schritt 1 ist das Gate (kein
+  Weiter ohne Datums-Range). Edit-Modus: Punkte springen direkt zur gewünschten Seite; Reset liegt
+  auf der letzten Seite. Der Special-Dinner-Preview wanderte auf Schritt 3 (nutzt dann alle Werte).
+- Kein neuer State im gespeicherten Config — reine UI-Schicht über dem bestehenden `draft`/`onSubmit`.
+
+**Kontextuelle Intros statt Vorab-Carousel:** die alte 6-Slide-`TutorialOverlay` VOR dem Configurator
+entfällt aus dem Flow (`handleCreateNew` legt den Trip jetzt direkt an; `showTutorial`/`handleTutorialDone`/
+`getTutorialSeen`/`setTutorialSeen`-Verkabelung aus `App.jsx` entfernt). Stattdessen zeigt jede
+Wizard-Seite beim **ersten Betreten** eine wegklickbare **Intro-Karte** (Erklärung des Schritts).
+Gemerkt global in `localStorage` (`ui_cfg_intros_v1` via `getConfigIntrosSeen`/`markConfigIntroSeen`
+in `useStorage.js`) → pro Schritt nur einmal, trip-übergreifend. Strings `S.config.wizard` + `S.config.steps`.
+`TutorialOverlay.jsx` + `S.tutorial` bleiben im Repo (Inhalt = App-Rundgang) für die spätere
+Tab-First-Visit-Tipp-Runde; nur aus dem Onboarding-Flow ausgehängt.
+
+**Tests:** `App.robustness.test.jsx` Flow-Test „Create → Tutorial → Configurator" auf „Create →
+Configurator-Wizard (Schritt 1)" umgestellt (kein Skip mehr; prüft Schritt-Titel + „Next"). Der
+UI-Fuzzer durchklickt jetzt zusätzlich Wizard-Nav/Punkte → weiterhin crashfrei. **398 Tests grün**
+(unverändert), Build grün (JS 1323.36 kB, CSS 58.81 kB). Auf `fresh-start`, nicht gemerged.
+
+**Bewusst offen (nächste Runde, so vereinbart):** First-Visit-Tipps für Menü/Rezepte/Einkauf/Stock-Tabs.
+
+---
+
 ## 2026-07-26 (bf) — Kochaufwand als Präferenz: „viel Aufwand" bevorzugt jetzt aufwändige Rezepte (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Die Kochaufwand-Funktion buggt — bei wenig und viel Aufwand tauchen

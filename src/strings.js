@@ -79,6 +79,32 @@ export const S = {
     welcomeSub: 'Set how long you\'re out, how many people you\'re feeding, and any dietary preferences. We\'ll generate a menu and a shopping list scaled for you.',
     editTitle: 'Trip settings',
     editSub: 'Update any value to regenerate your plan and shopping list. Items you already checked off will be marked instead of erased.',
+    // ── Mehr-Schritt-Wizard: geführte Seiten mit Weiter/Zurück statt einer langen Seite ──
+    wizard: {
+      back: '← Back',
+      next: 'Next →',
+      stepOf: ({ cur, total }) => `Step ${cur} of ${total}`,
+      introDismiss: 'Got it',
+    },
+    // Ein Eintrag pro Wizard-Schritt: Titel (Kopfzeile) + intro (kontextuelle Erklärung, erscheint
+    // beim ersten Betreten der Seite und ist wegklickbar). `key` = Storage-Marker (ui_cfg_intros_v1).
+    steps: [
+      {
+        key: 'dates',
+        title: 'Dates & route',
+        intro: 'Pick your trip dates on the calendar — tap your start day, then your end day. After that, tap any day to add a resupply stop (Bamaga, Cooktown…) or mark a night eating out.',
+      },
+      {
+        key: 'group',
+        title: 'Group & diet',
+        intro: 'Tell us who\'s eating: add people and set each appetite, choose a diet, and flag any allergies. Portions and the shopping list are scaled to exactly this group.',
+      },
+      {
+        key: 'kitchen',
+        title: 'Cooking & gear',
+        intro: 'Set how much cooking effort you want and what gear you\'ve got — number of burners and fridge size. This decides which recipes make it into your plan.',
+      },
+    ],
     daysLabel: 'Trip length',
     daysNotSelected: 'Tap a start day in the calendar, then your end day.',
     daysSelected: ({ days }) => `${days} ${days === 1 ? 'day' : 'days'} selected`,

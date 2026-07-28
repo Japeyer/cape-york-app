@@ -470,6 +470,23 @@ export function setTutorialSeen(seen = true) {
   } catch {}
 }
 
+// Configurator-Wizard: welche Schritt-Intros der User schon weggeklickt hat. Global (ui_),
+// überlebt Trip-Reset — die kontextuelle Erklärung soll pro Schritt nur EINMAL erscheinen.
+const CFG_INTROS_KEY = 'ui_cfg_intros_v1'
+export function getConfigIntrosSeen() {
+  try {
+    const a = JSON.parse(localStorage.getItem(CFG_INTROS_KEY))
+    return Array.isArray(a) ? a : []
+  } catch { return [] }
+}
+export function markConfigIntroSeen(stepKey) {
+  try {
+    const seen = new Set(getConfigIntrosSeen())
+    seen.add(stepKey)
+    localStorage.setItem(CFG_INTROS_KEY, JSON.stringify([...seen]))
+  } catch {}
+}
+
 // ── User-eigene Rezepte (globale Bibliothek, trip-übergreifend) ───
 // `user_recipes_v1` = Array von Rezept-Objekten (gleiche Form wie data/recipes.js). Global,
 // NICHT per-Trip-namespaced — einmal angelegt, in jedem Trip via Swap verwendbar.
