@@ -9,6 +9,7 @@ import RecipesTab from './components/RecipesTab.jsx'
 import InventoryTab from './components/InventoryTab.jsx'
 import InfoMapTab from './components/InfoMapTab.jsx'
 import ShoppingTab from './components/ShoppingTab.jsx'
+import PageTour from './components/PageTour.jsx'
 import { REGION } from './data/regions.js'
 import { generate } from './lib/generator.js'
 import {
@@ -367,6 +368,15 @@ export default function App() {
     setView('map')
   }, [])
 
+  // Welches Seiten-Tutorial gehört zur aktuellen Ansicht? (null = keins, z.B. Configurator —
+  // der erklärt sich über seine eigenen Schritt-Intros.) Alle Versorgungspunkte teilen sich
+  // das 'shopping'-Tutorial: die Bedienung ist in Cairns wie in Bamaga dieselbe.
+  const tourPage = view === 'home'
+    ? 'home'
+    : view === 'trip-active'
+      ? (activeSupplyPoint ? 'shopping' : (['menu', 'recipes', 'inventory'].includes(activeTab) ? activeTab : null))
+      : null
+
   const dietLabel = S.config.dietOptions[result.config.dietApplied].label
   const tripSummary = config.completed && config.days >= 1
     ? S.config.summary({
@@ -541,6 +551,10 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Kurz-Tutorial beim ERSTEN Öffnen einer Seite: Rest ausgegraut, die gerade erklärte
+          Funktion hervorgehoben + bedienbar. `key` → beim Seitenwechsel frisch aufsetzen. */}
+      {tourPage && <PageTour key={tourPage} page={tourPage} />}
 
       {view === 'trip-active' && (
         <nav className="bottom-nav">

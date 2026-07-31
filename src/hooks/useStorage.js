@@ -470,20 +470,34 @@ export function setTutorialSeen(seen = true) {
   } catch {}
 }
 
-// Configurator-Wizard: welche Schritt-Intros der User schon weggeklickt hat. Global (ui_),
-// überlebt Trip-Reset — die kontextuelle Erklärung soll pro Schritt nur EINMAL erscheinen.
+// Alt-Last: die Wizard-Intro-Karten (`ui_cfg_intros_v1`) sind durch die Seiten-Tutorials
+// ersetzt. Der Key wird nur noch beim „Tipps erneut zeigen" mit aufgeräumt, damit alte
+// Installationen keinen toten Eintrag behalten.
 const CFG_INTROS_KEY = 'ui_cfg_intros_v1'
-export function getConfigIntrosSeen() {
+
+// ── Seiten-Tutorials (Spotlight-Tipps pro Tab) ────────────────────
+// Pro Seite (home/menu/recipes/shopping/inventory) merken, ob der Nutzer die kurze
+// Einführung schon gesehen hat. Global (`ui_`), überlebt Trip-Reset — der Tipp soll
+// EINMAL erscheinen, nicht bei jedem neuen Trip erneut.
+const TOURS_KEY = 'ui_tours_v1'
+export function getToursSeen() {
   try {
-    const a = JSON.parse(localStorage.getItem(CFG_INTROS_KEY))
+    const a = JSON.parse(localStorage.getItem(TOURS_KEY))
     return Array.isArray(a) ? a : []
   } catch { return [] }
 }
-export function markConfigIntroSeen(stepKey) {
+export function markTourSeen(page) {
   try {
-    const seen = new Set(getConfigIntrosSeen())
-    seen.add(stepKey)
-    localStorage.setItem(CFG_INTROS_KEY, JSON.stringify([...seen]))
+    const seen = new Set(getToursSeen())
+    seen.add(page)
+    localStorage.setItem(TOURS_KEY, JSON.stringify([...seen]))
+  } catch {}
+}
+// „Tipps erneut zeigen" (About-Seite): Seiten-Tutorials UND Wizard-Intros zurücksetzen.
+export function resetAllIntros() {
+  try {
+    localStorage.removeItem(TOURS_KEY)
+    localStorage.removeItem(CFG_INTROS_KEY)
   } catch {}
 }
 

@@ -53,7 +53,7 @@ function TripCard({ trip, onOpen, onEdit, onDelete, onRename }) {
       </div>
 
       {done ? (
-        <button className="home-trip-body" onClick={() => onOpen(trip.id)}>
+        <button className="home-trip-body" data-tour="home-open" onClick={() => onOpen(trip.id)}>
           <div className="home-trip-dates">{start}{end && ` → ${end}`}</div>
           <div className="home-trip-summary">{S.home.tripStats({ days: cfg.days, persons, dietLabel })}</div>
           <div className="home-trip-cta">{S.home.openCta} →</div>
@@ -85,7 +85,7 @@ export default function HomeTab({ trips = [], premium = false, maxFreeTrips = 1,
           <div className="home-empty-icon">🦘</div>
           <h2 className="home-empty-title">{S.home.emptyTitle}</h2>
           <p className="home-empty-sub">{S.home.emptySub}</p>
-          <button className="home-create-btn" onClick={onCreateNew}>{S.home.createCta}</button>
+          <button className="home-create-btn" data-tour="home-create" onClick={onCreateNew}>{S.home.createCta}</button>
         </div>
       </div>
     )
@@ -108,7 +108,7 @@ export default function HomeTab({ trips = [], premium = false, maxFreeTrips = 1,
         />
       ))}
 
-      <button className={`home-create-secondary${atLimit ? ' locked' : ''}`} onClick={onCreateNew}>
+      <button className={`home-create-secondary${atLimit ? ' locked' : ''}`} data-tour="home-create" onClick={onCreateNew}>
         {atLimit ? `🔒 ${S.home.newTripLocked}` : `+ ${S.home.createNewCta}`}
       </button>
       <div className="home-create-hint">{atLimit ? S.home.upgradeHint : S.home.createNewHint}</div>

@@ -137,7 +137,7 @@ function RecipeCard({ recipe, persons, factor, toppingAllergens, focused }) {
 
   return (
     <div className="recipe-card" data-recipe={recipe.id}>
-      <div className="recipe-head" onClick={() => setOpen(o => !o)}>
+      <div className="recipe-head" data-tour="recipes-card" onClick={() => setOpen(o => !o)}>
         <div className="recipe-icon">{recipe.icon}</div>
         <div className="recipe-info">
           <div className="recipe-name">
@@ -262,7 +262,7 @@ export default function RecipesTab({ plan = [], persons = 2, factor = BASE_SERVI
           </div>
         </div>
       ))}
-      <button className="re-newbtn" onClick={() => openEditor(null)}>+ {S.recipes.newRecipeCta}</button>
+      <button className="re-newbtn" data-tour="recipes-new" onClick={() => openEditor(null)}>+ {S.recipes.newRecipeCta}</button>
     </div>
   )
 

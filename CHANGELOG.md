@@ -5,6 +5,120 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-07-31 (bi) — Spotlight-Tutorial auch im Trip-Wizard (Resupply + Restaurant) (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Sieht gut aus auf den Seiten, auf denen es umgesetzt wurde — mach das
+Gleiche auf den Trip-Erstellungs-Seiten, und geh auf wichtige Details wie Resupply-Stop und
+Restaurant ein. Erwähne beim Stock-Tutorial auch, dass dort alle Einkäufe auftauchen, wenn sie
+abgehakt wurden, und wieder verschwinden, wenn das Menü als gekocht abgehakt wird."
+
+**Wizard-Schritte bekommen Tutorials** (`config-dates` / `config-group` / `config-kitchen`, Key =
+`'config-' + S.config.steps[].key`). Gerendert von `ConfiguratorTab` selbst (nicht `App.jsx`), weil
+nur der Wizard seinen aktuellen Schritt kennt.
+- **Dates & route:** Kalender → Trip-Tag → **Resupply-Stop** → **Restaurant**. Die letzten beiden
+  Schritte zielen INS geöffnete DaySheet.
+- **Group & diet:** Gruppe/Appetit → Diät → Allergien. **Cooking & gear:** Kochaufwand → Kühlschrank
+  (erklärt die Fleisch-Cluster-Logik) → Generate.
+
+**Zwei Erweiterungen an `PageTour.jsx`, beide vom Wizard erzwungen:**
+1. **`doneWhen`** — ein Schritt kann an einem ZUSTAND enden statt am Tap. Eine Datums-Range braucht
+   zwei Taps; mit Tap-Abschluss wäre nach dem ersten Tap weitergeschaltet worden. `doneWhen`-Schritte
+   schalten am Klick bewusst NICHT weiter. Der Kalender-Schritt nutzt dieselbe Bedingung als
+   `skipIf` → im Edit-Modus (Range steht schon) entfällt er.
+2. **Sheets pausieren nur noch, wenn das Ziel NICHT im Sheet liegt.** Vorher pausierte das Tutorial
+   bei jedem offenen Sheet — dann wären Resupply/Restaurant unerklärbar gewesen (beide leben im
+   DaySheet). Der Tour-Layer (1050) liegt über dem Sheet (500), dimmt es also mit.
+
+**Echter Fund beim Verkabeln — Tap im Sheet kam nie an:** die Sheets rufen auf ihrer Karte
+`e.stopPropagation()` (damit ein Backdrop-Klick sie nicht schließt). React 17+ hängt EINEN Listener
+an den Root-Container; ein `stopPropagation` dort stoppt auch das native Event, bevor es `document`
+erreicht → der Bubble-Listener von PageTour sah Taps im DaySheet nie (Test schlug exakt an dieser
+Stelle fehl). **Fix:** Listener in der **Capture-Phase** (läuft vor allem anderen, von
+`stopPropagation` unberührt) + Weiterschalten per **Microtask**, damit Reacts Handler und Re-Render
+zuerst laufen und der Folgeschritt sein Ziel im aktuellen DOM findet.
+
+**Kalender-Anker bewusst der ganze Block** (inkl. ◀▶-Monatsnavigation): läge der Spotlight nur auf
+dem Tage-Raster, könnte man im Tutorial nicht in den Trip-Monat blättern, weil die Abdunklung alle
+Taps daneben schluckt.
+
+**Stock-Tutorial erweitert:** neuer Schritt `empty` für den leeren Tab (vor dem ersten Einkauf ist
+genau das der Normalfall) — erklärt den Kreislauf: **abgehakter Einkauf landet hier, als gekocht
+markierte Mahlzeit zieht ihn wieder ab.** `empty` und `row` schließen einander aus (fehlendes Ziel
+⇒ Schritt entfällt). Text von `row` um denselben Zusammenhang ergänzt. `cta` ist jetzt optional
+(reine Erklärungs-Schritte ohne Aktion).
+
+**Ersetzt: die Wizard-Intro-Karten aus (bg).** Zwei Erklärsysteme auf derselben Seite wären Lärm —
+der Inhalt der Karten steckt jetzt in den Tour-Texten, gezeigt am jeweiligen Bedienelement statt als
+Textblock darüber. Entfernt: `.cfg-intro`-Block + `showIntro`/`dismissIntro` in `ConfiguratorTab`,
+`S.config.steps[].intro` + `S.config.wizard.introDismiss`, `.cfg-intro*`-CSS, `getConfigIntrosSeen`/
+`markConfigIntroSeen`. Der Legacy-Key `ui_cfg_intros_v1` wird von „Show tips again" weiter
+mitgeräumt. Rückbau wäre klein, falls die Karten doch gewünscht sind.
+
+**Tests:** +3 Integrationstests (Wizard-Schritt 1 komplett inkl. DaySheet-Schritte · Kalender-Schritt
+bleibt stehen, bis eine Range steht · Schritte 2/3 zeigen eigene Tipps), Stock-Test auf den
+Empty-State umgestellt. Tap-Tests laufen jetzt über async `act` (Microtask-Weiterschaltung).
+**417 → 420 Tests grün**, Build grün (JS 1335.73 kB, CSS 60.41 kB).
+
+---
+
+## 2026-07-31 (bh) — Spotlight-Tutorial auf jeder Seite beim ersten Öffnen (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Auf jeder Seite soll beim ersten Öffnen ein kurzes Tutorial
+erscheinen — auch bei Einkauf und Inventar. Es soll die wichtigsten Funktionen kurz zeigen:
+alles ausgegraut, die gerade erklärte Funktion hervorgehoben, das Tutorial selbst ein kleines
+Popup über dem ausgegrauten Rest — und es verschwindet, nachdem die Funktion ausgeführt wurde."
+Das ist genau der in (bg) bewusst vertagte Punkt („First-Visit-Tipps für Menü/Rezepte/Einkauf/
+Stock-Tabs").
+
+**Neue Komponente `PageTour.jsx`** (Portal nach `document.body`, z-index 1050 → über der
+Bottom-Nav): pro Seite eine kurze Schritt-Folge, jeder Schritt erklärt **eine** Funktion.
+- **Abdunklung = vier Panels RINGS um das Ziel** (nicht ein Panel drüber mit `pointer-events:none`):
+  das erklärte Element ist von nichts überdeckt, bleibt also normal bedienbar, während alle Taps
+  daneben abgefangen werden. Genau dieser Tap schließt den Schritt ab.
+- **Abschluss durch die Aktion:** ein `click`-Listener am `document` (Bubble-Phase, React hat seinen
+  Handler dann schon abgearbeitet → das DOM des Folgeschritts existiert) erkennt den Tap auf das
+  Ziel und schaltet weiter; nach dem letzten Schritt verschwindet das Tutorial.
+- **Notausgänge:** „Next" (weiter ohne die Aktion) und „Skip tips" — niemand soll festhängen, nur
+  weil er gerade nicht tippen will.
+- **Position:** Popup unter dem Element, sonst darüber, in beide Richtungen so geklemmt, dass es nie
+  halb aus dem Bild ragt; Ziel außerhalb des Sichtfelds wird vorher hereingescrollt. Nachgeführt via
+  `MutationObserver` + `scroll`/`resize` (setState nur bei echter Rect-Änderung → kein Render-Loop).
+- **Robustheit:** offenes Bottom-Sheet (`[role="dialog"], .sheet-backdrop`) → Tutorial **pausiert**
+  und kommt danach zurück; fehlendes Ziel → Schritt wird übersprungen (`wait: true` bekommt 2 s
+  Gnadenfrist, weil das Element erst durch den vorigen Schritt entsteht); **wurde gar nichts gezeigt,
+  gilt die Seite NICHT als gesehen** (leerer Stock-Tab vor dem ersten Einkauf → Tipp kommt beim
+  nächsten Besuch wieder); Seite verlassen, nachdem ein Schritt sichtbar war = gesehen.
+
+**Inhalte (`lib/tours.js` = Struktur/Selektoren, `S.tours` = Texte, i18n-konform getrennt):**
+Home (Trip öffnen · Trip planen) · Menu (Tag aufklappen → Swap → Log) · Recipes (Rezept öffnen ·
+eigenes Rezept) · Shopping (Item abhaken · „🍽 wo verwendet?" · Teilen) · Stock (−1 verbrauchen ·
+Item hinzufügen). Alle Versorgungspunkte teilen sich EIN `shopping`-Tutorial (Bedienung ist in
+Cairns wie in Bamaga dieselbe). Der Configurator bleibt bei seinen (bg)-Intro-Karten.
+
+**Anker als `data-tour="…"`** in `HomeTab`/`MenuTab`/`RecipesTab`/`ShoppingTab`/`InventoryTab` —
+bewusst NICHT über Layout-Klassen, sonst bricht ein CSS-Rename das Tutorial still. Merker global in
+`ui_tours_v1` (`getToursSeen`/`markTourSeen`), überlebt Trip-Reset → einmal pro Installation.
+
+**„↺ Show tips again"** in der About-Seite (`resetAllIntros()` leert `ui_tours_v1` + `ui_cfg_intros_v1`)
+— ohne das müsste man für einen erneuten Durchlauf `localStorage` von Hand leeren.
+
+**Tests:** neue `PageTour.test.jsx` (**+19**): Erst-Anzeige, Abschluss durch die Aktion, Skip/Next,
+Überspringen fehlender Ziele, „nichts gezeigt ⇒ nicht abgehakt", Sheet-Pause, kaputter localStorage,
+Geometrie (Ring sitzt exakt auf dem Element; Popup weicht am unteren Rand nach oben aus — mit
+gefälschten Rects, weil jsdom kein Layout rechnet) **plus 4 Integrationstests gegen die echte App**
+(Home-Spotlight, Menu Tag→Swap, Tab-Wechsel zeigt je eigenen Tipp/keine Wiederholung, leerer
+Stock-Tab). **Schärfe belegt:** ein umbenannter `data-tour`-Anker (`menu-swap` → `menu-swapXX`) ließ
+den Integrationstest sofort fehlschlagen; danach revertiert. Der UI-Fuzzer läuft weiter crashfrei
+(er klickt die Tutorial-Buttons jetzt mit). **398 → 417 Tests grün**, Build grün (JS 1332.77 kB,
+CSS 60.83 kB).
+
+**Bewusst offen:** `TutorialOverlay.jsx` + `S.tutorial` (der alte 6-Slide-Carousel) sind weiterhin
+im Repo und nirgends eingehängt — jetzt endgültig durch die Seiten-Tutorials ersetzt; Löschen wäre
+der nächste saubere Schritt, ist aber eine eigene Entscheidung. Optik der Overlays wurde nicht am
+echten Gerät gegengeprüft (jsdom rechnet kein Layout) → 360-px-Sichtprüfung steht aus.
+
+---
+
 ## 2026-07-28 (bg) — Configurator als geführter 3-Schritt-Wizard + kontextuelle Intros pro Seite (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Für eine bessere Führung durch die App wären unterschiedliche Seiten

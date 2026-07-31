@@ -136,7 +136,7 @@ function CheckItem({ item, checked, onToggle, onEdit, usage, onOpenRecipe }) {
   return (
     <div className={`chk-item${checked ? ' done' : ''}`}>
       <div className="chk-item-top">
-        <div className="chk-row" onClick={() => onToggle(item.id)}>
+        <div className="chk-row" data-tour="shop-tick" onClick={() => onToggle(item.id)}>
           <div className={`chk-box${checked ? ' checked' : ''}`}>
             {checked ? '✓' : ''}
           </div>
@@ -151,6 +151,7 @@ function CheckItem({ item, checked, onToggle, onEdit, usage, onOpenRecipe }) {
         {uses.length > 0 && (
           <button
             className={`chk-use-btn${showUse ? ' open' : ''}`}
+            data-tour="shop-uses"
             onClick={() => setShowUse(s => !s)}
             aria-expanded={showUse}
             aria-label={S.shopping.usedInAria({ n: uses.length })}
@@ -491,7 +492,7 @@ export default function ShoppingTab({ supplyPoint, data, plan, onOpenRecipe, loc
         <div className="progress-actions">
           <button className="progress-btn" onClick={resetAll}>{S.shopping.actions.reset}</button>
           {total > 0 && (
-            <button className="progress-btn share" onClick={handleShare}>
+            <button className="progress-btn share" data-tour="shop-share" onClick={handleShare}>
               {S.shopping.actions.share}
             </button>
           )}

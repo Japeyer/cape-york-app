@@ -10,7 +10,7 @@ import {
 import TripCalendar from './TripCalendar.jsx'
 import DaySheet from './DaySheet.jsx'
 import PremiumGate from './PremiumGate.jsx'
-import { getConfigIntrosSeen, markConfigIntroSeen } from '../hooks/useStorage.js'
+import PageTour from './PageTour.jsx'
 import { parseISO, addDays } from '../lib/dates.js'
 import { ALLERGENS } from '../lib/allergens.js'
 import { REGION } from '../data/regions.js'
@@ -41,7 +41,7 @@ function clampStopDay(day, days) {
   return Math.max(2, Math.min(hi, day | 0 || 2))
 }
 
-function PillPicker({ label, hint, options, optionMap, value, onChange, columns, locked, onUpgrade }) {
+function PillPicker({ label, hint, options, optionMap, value, onChange, columns, locked, onUpgrade, dataTour }) {
   const cols = columns || options.length
   const grid = (
     <div className="diet-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
@@ -61,7 +61,7 @@ function PillPicker({ label, hint, options, optionMap, value, onChange, columns,
     </div>
   )
   return (
-    <div className="cfg-row">
+    <div className="cfg-row" data-tour={dataTour}>
       <div className="cfg-row-head">
         <div className="cfg-label">{label}</div>
         {hint && <div className="cfg-hint">{hint}</div>}
@@ -180,7 +180,7 @@ function GroupEditor({ people, onChange }) {
   const totalKcal = groupDailyKcal(people)
 
   return (
-    <div className="cfg-row">
+    <div className="cfg-row" data-tour="cfg-people">
       <div className="cfg-row-head">
         <div className="cfg-label">{S.config.groupLabel}</div>
         <div className="cfg-hint">{S.config.groupHint}</div>
@@ -256,14 +256,10 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
   // Punkte antippen: rückwärts immer, vorwärts nur wenn ein Zeitraum gewählt ist (sonst Gate umgangen).
   const jumpTo = (i) => { if (i <= step || hasRange) setStep(i) }
 
-  // Kontextuelle Intro-Karte pro Schritt — erscheint beim ersten Betreten, wegklickbar, global
-  // in localStorage gemerkt (nur einmal pro Schritt, trip-übergreifend).
-  const [seenIntros, setSeenIntros] = useState(() => new Set(getConfigIntrosSeen()))
-  const dismissIntro = (key) => {
-    markConfigIntroSeen(key)
-    setSeenIntros(prev => new Set(prev).add(key))
-  }
-  const showIntro = !seenIntros.has(curStep.key)
+  // Erklärt wird beim ersten Betreten eines Schritts per Spotlight-Tutorial (wie in den
+  // Trip-Tabs) — die frühere Intro-Karte ist darin aufgegangen: statt eines Textblocks über
+  // der Seite zeigt der Spotlight jetzt direkt auf Kalender / Gruppe / Kühlschrank usw.
+  const tourPage = `config-${curStep.key}`
 
   // Calendar-Range-Select: ruft das mit (startISO, days) wenn der User eine Range gewählt hat.
   // Bamaga-Day kommt aus 0.55-Heuristik wenn vorher noch nichts war; sonst auf neue Range geklemmt.
@@ -461,16 +457,6 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
           </div>
         </div>
 
-        {/* Kontextuelle Erklärung — erscheint einmal beim ersten Betreten der Seite. */}
-        {showIntro && (
-          <div className="cfg-intro">
-            <div className="cfg-intro-body">{curStep.intro}</div>
-            <button className="cfg-intro-dismiss" onClick={() => dismissIntro(curStep.key)}>
-              {S.config.wizard.introDismiss}
-            </button>
-          </div>
-        )}
-
         {/* ── Schritt 1: Datum & Route ── */}
         {step === 0 && (
           <div className="cfg-step-panel">
@@ -484,7 +470,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
                 </div>
               </div>
               {hasRange && (
-                <button className="repick-btn" onClick={handleRepickDates}>
+                <button className="repick-btn" data-tour="cfg-repick" onClick={handleRepickDates}>
                   {S.config.repickDates}
                 </button>
               )}
@@ -514,6 +500,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
             />
 
             <PillPicker
+              dataTour="cfg-diet"
               label={S.config.dietLabel}
               options={DIETS}
               optionMap={S.config.dietOptions}
@@ -522,6 +509,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
             />
 
             <PillPicker
+              dataTour="cfg-allergies"
               label={S.config.allergiesLabel}
               hint={S.config.allergiesHint}
               options={ALLERGY_OPTS}
@@ -568,6 +556,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
         {step === 2 && (
           <div className="cfg-step-panel">
             <PillPicker
+              dataTour="cfg-effort"
               label={S.config.effortLabel}
               hint={S.config.effortHint}
               options={COOK_EFFORT_OPTS}
@@ -586,6 +575,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
             />
 
             <PillPicker
+              dataTour="cfg-fridge"
               label={S.config.fridgeLabel}
               hint={S.config.fridgeHint}
               options={FRIDGE_OPTS}
@@ -635,6 +625,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
           ) : (
             <button
               className="gen-btn cfg-nav-gen"
+              data-tour="cfg-generate"
               onClick={() => onSubmit({ ...draft, completed: true })}
               disabled={!hasRange}
             >
@@ -669,6 +660,10 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
         onToggleRestaurant={(slot) => openDay && toggleRestaurantSlot(openDay.dayNum, slot)}
         onClose={() => setOpenDay(null)}
       />
+
+      {/* Kurz-Tutorial beim ersten Betreten dieses Wizard-Schritts. `key` → jeder Schritt
+          setzt frisch auf; Schritte, die ins offene DaySheet zeigen, laufen dort weiter. */}
+      <PageTour key={tourPage} page={tourPage} />
     </div>
   )
 }

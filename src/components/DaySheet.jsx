@@ -23,9 +23,9 @@ function Sheet({ title, onClose, children }) {
   )
 }
 
-function ToggleRow({ icon, label, sub, active, onClick }) {
+function ToggleRow({ icon, label, sub, active, onClick, dataTour }) {
   return (
-    <button className={`sheet-toggle${active ? ' active' : ''}`} onClick={onClick}>
+    <button className={`sheet-toggle${active ? ' active' : ''}`} data-tour={dataTour} onClick={onClick}>
       <div className="sheet-toggle-text">
         <div className="sheet-toggle-label">
           {icon && <span className="sheet-toggle-icon">{icon}</span>}
@@ -60,7 +60,7 @@ export default function DaySheet({
       onClose={onClose}
     >
       {hasResupplyOptions && (
-        <>
+        <div data-tour="cfg-stop">
           <div className="sheet-section-label">{S.config.daySheet.resupplyHeading}</div>
           <div className="sheet-section-hint">{S.config.daySheet.resupplyHint}</div>
           {stopRows.map(row => (
@@ -73,25 +73,29 @@ export default function DaySheet({
               onClick={() => onToggleStop(row.stopId)}
             />
           ))}
-        </>
+        </div>
       )}
 
-      <div className="sheet-section-label">{S.config.daySheet.restaurantHeading}</div>
-      <ToggleRow
-        label={S.config.daySheet.breakfast}
-        active={slots.f === true}
-        onClick={() => onToggleRestaurant('f')}
-      />
-      <ToggleRow
-        label={S.config.daySheet.lunch}
-        active={slots.m === true}
-        onClick={() => onToggleRestaurant('m')}
-      />
-      <ToggleRow
-        label={S.config.daySheet.dinner}
-        active={slots.ab === true}
-        onClick={() => onToggleRestaurant('ab')}
-      />
+      {/* Wrapper ist reiner Tutorial-Anker (Block-Element, layout-neutral) — der Spotlight
+          soll den ganzen „eating out"-Block zeigen, nicht nur eine der drei Mahlzeiten. */}
+      <div data-tour="cfg-restaurant">
+        <div className="sheet-section-label">{S.config.daySheet.restaurantHeading}</div>
+        <ToggleRow
+          label={S.config.daySheet.breakfast}
+          active={slots.f === true}
+          onClick={() => onToggleRestaurant('f')}
+        />
+        <ToggleRow
+          label={S.config.daySheet.lunch}
+          active={slots.m === true}
+          onClick={() => onToggleRestaurant('m')}
+        />
+        <ToggleRow
+          label={S.config.daySheet.dinner}
+          active={slots.ab === true}
+          onClick={() => onToggleRestaurant('ab')}
+        />
+      </div>
 
     </Sheet>
   )

@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { S } from '../strings.js'
+import { resetAllIntros } from '../hooks/useStorage.js'
 
 // About-View — App-Info, Datenschutz-Hinweis, Disclaimer.
 // Erreichbar über das ⓘ-Icon im Topbar auf der Home-Seite.
@@ -12,6 +14,10 @@ import { S } from '../strings.js'
 // und Kartendaten) wurde mit der Deaktivierung der Map entfernt — die App zeigt aktuell keine
 // OSM-Daten mehr, also ist keine Attribution nötig. Kommt mit der Map in V2 zurück.
 export default function AboutTab() {
+  // „Tipps erneut zeigen": setzt die Seiten-Tutorials + Wizard-Intros zurück. Ohne das
+  // müsste man localStorage von Hand leeren, um sie nochmal zu sehen.
+  const [tipsReset, setTipsReset] = useState(false)
+
   return (
     <div className="about-wrap">
       <div className="about-card">
@@ -29,6 +35,18 @@ export default function AboutTab() {
           <a className="about-link" href={S.about.privacyUrl} target="_blank" rel="noopener noreferrer">
             {S.about.privacyCta} →
           </a>
+        </div>
+
+        <div className="about-section">
+          <div className="about-section-label">{S.about.tipsHeading}</div>
+          <p className="about-text">{S.about.tipsBody}</p>
+          <button
+            className="about-tips-btn"
+            onClick={() => { resetAllIntros(); setTipsReset(true) }}
+            disabled={tipsReset}
+          >
+            {tipsReset ? S.about.tipsDone : S.about.tipsCta}
+          </button>
         </div>
 
         <div className="about-section about-disclaimer">

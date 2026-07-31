@@ -98,7 +98,7 @@ export default function InventoryTab({ plan, shopping, factor }) {
   const actionBtns = (row) => (
     <>
       {!isDepleted(row.remaining) && countUnit(row.remaining) && (
-        <button className="inv-btn inv-dec" aria-label={S.inventory.minusOneAria({ name: row.name })} onClick={() => decOne(row)}>−1</button>
+        <button className="inv-btn inv-dec" data-tour="inv-row" aria-label={S.inventory.minusOneAria({ name: row.name })} onClick={() => decOne(row)}>−1</button>
       )}
       {!isDepleted(row.remaining) && (
         <button className="inv-btn inv-off" aria-label={S.inventory.usedUpAria({ name: row.name })} onClick={() => crossOff(row)}>✕</button>
@@ -131,7 +131,7 @@ export default function InventoryTab({ plan, shopping, factor }) {
           <button className="inv-add-cancel" onClick={() => { setAdding(false); setName(''); setQty(1) }}>{S.inventory.addCancel}</button>
         </div>
       ) : (
-        <button className="inv-add-btn" onClick={() => setAdding(true)}>{S.inventory.addBtn}</button>
+        <button className="inv-add-btn" data-tour="inv-add" onClick={() => setAdding(true)}>{S.inventory.addBtn}</button>
       )}
     </div>
   )
@@ -139,7 +139,7 @@ export default function InventoryTab({ plan, shopping, factor }) {
   if (boughtCount === 0) {
     return (
       <div className="inv-wrap">
-        <div className="inv-empty">
+        <div className="inv-empty" data-tour="inv-empty">
           <div className="inv-empty-icon">📦</div>
           <div className="inv-empty-title">{S.inventory.emptyTitle}</div>
           <div className="inv-empty-sub">{S.inventory.emptySub}</div>

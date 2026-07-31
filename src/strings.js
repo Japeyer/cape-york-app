@@ -74,6 +74,151 @@ export const S = {
     ],
   },
 
+  // ── Seiten-Tutorials (Spotlight-Tipps) ──
+  // Struktur/Selektoren stehen in `lib/tours.js`; hier nur die Texte, gekeyt nach
+  // `S.tours[page][step.key]`. `cta` = die Aktion, die den Schritt abschließt.
+  tours: {
+    ui: {
+      skip: 'Skip tips',
+      next: 'Next',
+      done: 'Got it',
+      stepOf: ({ cur, total }) => `${cur} of ${total}`,
+    },
+    // Trip-Erstellung — Schlüssel = 'config-' + S.config.steps[].key
+    'config-dates': {
+      calendar: {
+        title: 'Pick your dates',
+        body: 'Tap the day you leave Cairns, then the day you get back. Everything — menu, portions, shopping list — is built from this range.',
+        cta: 'Tap your start day, then your last day',
+      },
+      day: {
+        title: 'Plan a single day',
+        body: 'Every day of your trip can be adjusted. Tap one to mark a resupply stop or a night eating out.',
+        cta: 'Tap the highlighted day',
+      },
+      stop: {
+        title: 'Resupply stops',
+        body: 'Mark the day you pass a shop — Bamaga, Cooktown, Coen, Archer River. Fresh meat, veg and fruit for the days after it then move onto that stop\'s own shopping list, so you buy them there instead of hauling them from Cairns. You get one list per stop.',
+        cta: 'Tap a stop to put it on this day',
+      },
+      restaurant: {
+        title: 'Eating out',
+        body: 'Roadhouse burger or a pub night? Mark that meal as eating out and it drops out of the plan — no recipe, and its ingredients disappear from your shopping list.',
+        cta: 'Tap a meal you plan to eat out',
+      },
+    },
+    'config-group': {
+      people: {
+        title: 'Who is eating',
+        body: 'Add everyone on the trip. Each person gets an appetite — portions and shopping quantities are scaled to exactly this group, not to a rough headcount.',
+        cta: 'Set the people in your group',
+      },
+      diet: {
+        title: 'Diet',
+        body: 'Omnivore, vegetarian or vegan. This is a hard filter: no recipe that breaks it can end up in your plan.',
+        cta: 'Pick your diet',
+      },
+      allergies: {
+        title: 'Allergies',
+        body: 'Turn this on to exclude recipes containing an allergen. Ingredients that are only a topping are flagged with a warning instead of dropping the whole recipe.',
+        cta: 'Choose yes or no',
+      },
+    },
+    'config-kitchen': {
+      effort: {
+        title: 'How much cooking?',
+        body: 'Easy keeps every meal simple. More lets the bigger recipes in — useful for a base camp, less so for a long driving day.',
+        cta: 'Pick your cooking effort',
+      },
+      fridge: {
+        title: 'Your fridge',
+        body: 'Fridge size decides how many days of fresh meat fit on board. That is what groups the meat days together right after Cairns and after each resupply stop — so nothing spoils.',
+        cta: 'Pick your fridge size',
+      },
+      generate: {
+        title: 'Build the trip',
+        body: 'This creates your day-by-day menu, the recipes and one shopping list per stop. You can come back and change anything later — already-ticked items are kept.',
+        cta: 'Tap to generate your plan',
+      },
+    },
+    home: {
+      create: {
+        title: 'Plan a trip',
+        body: 'Everything starts here: tell us your dates, your group and your gear, and the app builds your menu, recipes and shopping list.',
+        cta: 'Tap to start planning',
+      },
+      open: {
+        title: 'Your trip',
+        body: 'Open a trip to see its menu, recipes and shopping lists. Use ✎ Edit to change dates, people or gear at any time.',
+        cta: 'Tap the card to open it',
+      },
+    },
+    menu: {
+      day: {
+        title: 'Your day-by-day plan',
+        body: 'Every day has breakfast, lunch and dinner. Tap a day to see what is planned.',
+        cta: 'Tap the day to open it',
+      },
+      swap: {
+        title: 'Not in the mood?',
+        body: 'Swap any meal for another recipe that still fits your diet, gear and fresh-food limits. Your shopping list updates with it.',
+        cta: 'Tap Swap to see the options',
+      },
+      log: {
+        title: 'Log what you cooked',
+        body: 'After a meal, log it as cooked — or tick only the ingredients you actually used. That keeps your Stock tab honest.',
+        cta: 'Tap Log to try it',
+      },
+    },
+    recipes: {
+      card: {
+        title: 'Recipes work offline',
+        body: 'Tap a recipe for ingredients and steps. Quantities are already scaled to your group — no signal needed up the Cape.',
+        cta: 'Tap a recipe to open it',
+      },
+      own: {
+        title: 'Add your own',
+        body: 'Save your own recipes here. They stay on your phone and you can drop them into any day from the menu.',
+        cta: 'Tap to add a recipe',
+      },
+    },
+    shopping: {
+      tick: {
+        title: 'Tick as you shop',
+        body: 'Quantities are scaled to your group and split across your resupply stops. Tap a line to tick it off — it is remembered offline.',
+        cta: 'Tap an item to tick it off',
+      },
+      uses: {
+        title: 'Why is this on the list?',
+        body: 'The 🍽 button shows which meals use this ingredient and on which days — handy when you are deciding what to skip.',
+        cta: 'Tap 🍽 to see the meals',
+      },
+      share: {
+        title: 'Share the list',
+        body: 'Send the whole list as text to whoever is doing the shopping, or keep a copy for yourself.',
+        cta: 'Tap Share to try it',
+      },
+    },
+    inventory: {
+      // Vor dem ersten Einkauf ist der Tab leer — dann wird genau das erklärt (der "−1"-
+      // Schritt hat kein Ziel und entfällt automatisch).
+      empty: {
+        title: 'Your stock, tracked for you',
+        body: 'Nothing here yet — this list fills itself. Every item you tick off on a shopping list shows up here as on board. Log a meal as cooked in the menu and its ingredients come straight back off, so this stays what is actually in the car.',
+      },
+      row: {
+        title: 'What is left',
+        body: 'Everything you tick off on a shopping list lands here automatically. When you log a meal as cooked in the menu, its ingredients are subtracted again — used up completely, and the item disappears into "Used up". Tap −1 for a snack, or ✕ when something is gone.',
+        cta: 'Tap −1 to take one off',
+      },
+      add: {
+        title: 'Bought on the road?',
+        body: 'Add anything you picked up along the way — a bag of mangoes at a roadside stall — so your stock stays accurate.',
+        cta: 'Tap to add an item',
+      },
+    },
+  },
+
   config: {
     welcome: 'Welcome — let\'s plan your Cape York trip.',
     welcomeSub: 'Set how long you\'re out, how many people you\'re feeding, and any dietary preferences. We\'ll generate a menu and a shopping list scaled for you.',
@@ -84,26 +229,13 @@ export const S = {
       back: '← Back',
       next: 'Next →',
       stepOf: ({ cur, total }) => `Step ${cur} of ${total}`,
-      introDismiss: 'Got it',
     },
-    // Ein Eintrag pro Wizard-Schritt: Titel (Kopfzeile) + intro (kontextuelle Erklärung, erscheint
-    // beim ersten Betreten der Seite und ist wegklickbar). `key` = Storage-Marker (ui_cfg_intros_v1).
+    // Ein Eintrag pro Wizard-Schritt. `key` steuert AUCH das Seiten-Tutorial des Schritts
+    // (`S.tours['config-' + key]`) — Schlüssel hier ändern heißt: dort mit ändern.
     steps: [
-      {
-        key: 'dates',
-        title: 'Dates & route',
-        intro: 'Pick your trip dates on the calendar — tap your start day, then your end day. After that, tap any day to add a resupply stop (Bamaga, Cooktown…) or mark a night eating out.',
-      },
-      {
-        key: 'group',
-        title: 'Group & diet',
-        intro: 'Tell us who\'s eating: add people and set each appetite, choose a diet, and flag any allergies. Portions and the shopping list are scaled to exactly this group.',
-      },
-      {
-        key: 'kitchen',
-        title: 'Cooking & gear',
-        intro: 'Set how much cooking effort you want and what gear you\'ve got — number of burners and fridge size. This decides which recipes make it into your plan.',
-      },
+      { key: 'dates',   title: 'Dates & route' },
+      { key: 'group',   title: 'Group & diet' },
+      { key: 'kitchen', title: 'Cooking & gear' },
     ],
     daysLabel: 'Trip length',
     daysNotSelected: 'Tap a start day in the calendar, then your end day.',
@@ -405,6 +537,11 @@ export const S = {
     privacyBody: 'Everything you enter — your trip configuration, shopping checks, recipe swaps — stays on this device. The app does not collect, transmit, or share any personal data. There is no account, no cloud sync, no analytics, no tracking.',
     privacyCta: 'Read the full privacy policy',
     privacyUrl: 'https://japeyer.github.io/cape-york-app/privacy.html',
+
+    tipsHeading: 'Tips',
+    tipsBody: 'Each screen shows a short tip the first time you open it. You can bring them all back.',
+    tipsCta: '↺ Show tips again',
+    tipsDone: '✓ Tips will show again',
 
     disclaimerHeading: 'Important',
     disclaimerBody: 'This app is a planning aid, not a substitute for trip preparation. Always carry adequate water, fuel, and emergency supplies, and confirm fuel availability and opening hours before you set out. Allergen filtering is heuristic — always check ingredient lists yourself if you have a serious allergy.',

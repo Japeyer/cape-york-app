@@ -14,9 +14,12 @@ function monthsInRange(start, end) {
   return out
 }
 
+// `tourDayNum` = der Tag, auf den das Seiten-Tutorial zeigt (data-tour="cfg-tripday").
+// Bewusst ein Tag in der Trip-Mitte: an Tag 1 (Cairns-Start) und am letzten Tag bietet das
+// DaySheet keine Resupply-Optionen an, dort liefe die Erklärung ins Leere.
 function MonthGrid({
   monthDate, tripStart, tripEnd, pendingStart, markedByDayNum, restaurantSlots,
-  getDayNum, onTapDate,
+  getDayNum, onTapDate, tourDayNum,
 }) {
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth()
@@ -72,6 +75,7 @@ function MonthGrid({
               key={i}
               className={cls}
               style={style}
+              data-tour={dayNum != null && dayNum === tourDayNum ? 'cfg-tripday' : undefined}
               onClick={() => onTapDate(date, inTrip, dayNum)}
             >
               <span className="cal-day-num">{date.getDate()}</span>
@@ -115,6 +119,13 @@ export default function TripCalendar({
   )
 
   const [pendingStart, setPendingStart] = useState(null)
+
+  // Tutorial-Anker: mittlerer Trip-Tag (nie Tag 1 / letzter Tag — dort gibt es keine
+  // Resupply-Optionen). Zu kurze Trips bekommen keinen Anker, der Schritt entfällt dann.
+  const tourDayNum = useMemo(() => {
+    if (isSelectMode || days < 3) return null
+    return Math.min(Math.max(2, Math.round(days / 2)), days - 1)
+  }, [isSelectMode, days])
 
   const markedByDayNum = useMemo(() => {
     const m = new Map()
@@ -182,7 +193,10 @@ export default function TripCalendar({
   }
 
   return (
-    <div className="cfg-row">
+    // data-tour: Anker fürs Tutorial. Bewusst der GANZE Block (inkl. ◀▶-Monatsnavigation) —
+    // wäre nur das Tage-Raster hervorgehoben, könnte man im Spotlight nicht in den Trip-Monat
+    // blättern, weil die Abdunklung alle Taps daneben schluckt.
+    <div className="cfg-row" data-tour="cfg-calendar">
       <div className="cfg-row-head">
         <div className="cfg-label">{S.config.calendarLabel}</div>
         <div className="cfg-hint">
@@ -199,6 +213,7 @@ export default function TripCalendar({
       {months.map((m) => (
         <MonthGrid
           key={`${m.getFullYear()}-${m.getMonth()}`}
+          tourDayNum={tourDayNum}
           monthDate={m}
           tripStart={start}
           tripEnd={end}

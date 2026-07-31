@@ -146,12 +146,12 @@ function MealRow({ label, meal, dayNum, slot, onRecipeClick, onSwap, onMark }) {
           </button>
         )}
         {onSwap && !info?.marked && (
-          <button className="meal-swap" onClick={() => onSwap(dayNum, slot, meal.r)}>
+          <button className="meal-swap" data-tour="menu-swap" onClick={() => onSwap(dayNum, slot, meal.r)}>
             {S.menu.swap.btn}
           </button>
         )}
         {onMark && (
-          <button className="meal-swap meal-mark" onClick={() => onMark(dayNum, slot, meal)}>
+          <button className="meal-swap meal-mark" data-tour="menu-log" onClick={() => onMark(dayNum, slot, meal)}>
             {S.menu.status.markBtn}
           </button>
         )}
@@ -272,7 +272,9 @@ function DayCard({ day, isToday, isOpen, onToggle, onRecipeClick, onSwap, onMark
       data-day={day.d}
       className={`day-card${day.bamaga ? ' bamaga-day' : ''}${isToday ? ' day-today' : ''}`}
     >
-      <div className="day-head" onClick={onToggle}>
+      {/* data-tour: Anker für das Seiten-Tutorial (nur am ersten Tag, der Spotlight
+          nimmt sonst irgendeine Karte weiter unten). */}
+      <div className="day-head" data-tour={day.d === 1 ? 'menu-day' : undefined} onClick={onToggle}>
         <div className="day-num">
           <span className="day-num-n">{day.d}</span>
           {day.dt}
