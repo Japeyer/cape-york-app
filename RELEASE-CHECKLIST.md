@@ -87,8 +87,15 @@ Persistenz, echtes Touch/Viewport-Verhalten. Zielgerät: Samsung Galaxy S-Serie 
 
 Aus `STATUS.md` — Privacy/Identitäts-Themen, die vor einem öffentlichen Store-Release stehen:
 
-- [ ] Alte Branches `main` / `redesign` auf `origin` (tragen private History) durch den
+- [x] Alte Branches `main` / `redesign` auf `origin` (tragen private History) durch den
       sauberen `fresh-start`-Stand ersetzt oder gelöscht — sonst ist der Scrub wirkungslos.
+      *(2026-08-04: `main` per Force-Push ersetzt, `redesign` remote + lokal gelöscht. Auf
+      `origin` stehen nur noch `main` + `fresh-start`, beide mit neutralem Author.)*
+- [ ] **Rest-Exposition schließen:** Gelöschte Branches entfernen die Commits NICHT von GitHubs
+      Servern — die alte Spitze `fa53b0e` ist über ihre direkte SHA-URL weiterhin abrufbar
+      (verifiziert: HTTP 200), bis GitHub den Repo garbage-collected. Zwei Wege: GitHub Support
+      um ein GC bitten, ODER Repo löschen + unter gleichem Namen neu anlegen und `main` frisch
+      pushen (kostet hier nichts: 0 Forks, 0 Stars — nur Pages/Actions neu aktivieren).
 - [ ] Kontakt-Platzhalter (`support@example.com`) durch echte Support-Adresse ersetzt.
 - [ ] Live-gehostete Privacy Policy entspricht dem aktuellen Stand (kein OSM, keine private Identität).
 - [ ] Echte App-Icons (aktuell teils Platzhalter).

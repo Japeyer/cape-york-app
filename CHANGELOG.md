@@ -5,6 +5,33 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-08-04 (bj) — Alte Identitäts-History von GitHub entfernt (Branch `redesign` gelöscht)
+
+**Anlass (der Entwickler):** „Es soll nur noch die aktuellste Version verwendet werden." Damit ist
+der seit (aw)/(at) offene Privacy-Blocker geschlossen worden — der letzte Rest der alten History.
+
+**Befund vor der Aktion (verifiziert, nicht angenommen):** `git log redesign` zeigte **30 Commits
+mit Klarnamen + privater E-Mail** in den Author-Metadaten; `main`/`fresh-start` dagegen 10 Commits
+ausschließlich als `Cape York Dev <…@users.noreply.github.com>`. Auf `origin` lagen keine Tags und
+keine weiteren Refs — `redesign` war der einzige verbliebene Träger.
+
+**Gemacht:** `git push origin --delete redesign` + lokalen Branch gelöscht + `--prune`. Auf `origin`
+stehen jetzt nur noch `main` und `fresh-start`, beide auf `93c2504`. Lokaler `main` wurde auf
+`origin/main` nachgezogen (stand noch einen Commit zurück).
+
+**Ehrliche Grenze — wichtig für den Release-Scrub:** Das Löschen eines Branches entfernt die Commits
+NICHT von GitHubs Servern. Direkt nach dem Delete war die alte Spitze `fa53b0e` über ihre SHA-URL
+weiterhin abrufbar (`HTTP 200` gemessen). Unerreichbare Objekte verschwinden erst mit einem
+Garbage-Collect, den GitHub nicht automatisch fährt. Zwei Wege, in `RELEASE-CHECKLIST.md` Ebene D
+als offener Punkt notiert: (1) GitHub Support um GC bitten, (2) Repo löschen und unter gleichem
+Namen neu anlegen — hier billig, weil **0 Forks / 0 Stars** (per API geprüft), also existiert die
+History nirgends sonst im Fork-Netzwerk. Kosten: Pages + Actions einmal neu aktivieren.
+
+**Nicht gemacht:** Repo-Neuanlage — das ist eine Entscheidung des Entwicklers (kurze Downtime der
+Live-URL), keine Aufräum-Aktion, die nebenbei passieren sollte.
+
+---
+
 ## 2026-07-31 (bi) — Spotlight-Tutorial auch im Trip-Wizard (Resupply + Restaurant) (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Sieht gut aus auf den Seiten, auf denen es umgesetzt wurde — mach das
