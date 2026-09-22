@@ -24,6 +24,10 @@
 //   doneWhen— optional: der Schritt endet an einem ZUSTAND, nicht am Tap (Datums-Range
 //             braucht zwei Taps). Solange die Bedingung falsch ist, bleibt der Spotlight
 //             stehen; der Tap auf das Ziel schaltet dann NICHT weiter.
+//   nextOpens— optional: die Folge-Schritte leben in UI, die erst der Tap auf DIESES Ziel
+//             öffnet (DaySheet, Tages-Karte). Drückt der Nutzer Next statt selbst zu
+//             tippen, führt die Tour den Tap aus — die Folge-Erklärungen (Resupply-Stop,
+//             Restaurant, Swap) entfallen so nie mangels Ziel.
 //
 // Fehlt ein Ziel dauerhaft (leere Seite, Feature nicht sichtbar), wird der Schritt
 // stillschweigend übersprungen. Wurde dadurch KEIN Schritt gezeigt, gilt das Tutorial
@@ -40,7 +44,7 @@ export const TOURS = {
   // (PageTour pausiert nur, wenn das Ziel NICHT im Sheet liegt).
   'config-dates': [
     { key: 'calendar',   sel: '[data-tour="cfg-calendar"]', skipIf: hasDateRange, doneWhen: hasDateRange },
-    { key: 'day',        sel: '[data-tour="cfg-tripday"]',    wait: true },
+    { key: 'day',        sel: '[data-tour="cfg-tripday"]',    wait: true, nextOpens: true },
     { key: 'stop',       sel: '[data-tour="cfg-stop"]',       wait: true },
     { key: 'restaurant', sel: '[data-tour="cfg-restaurant"]', wait: true },
   ],
@@ -66,7 +70,7 @@ export const TOURS = {
 
   menu: [
     // Tag aufklappen — entfällt, wenn bereits ein Tag offen ist (z.B. „heute").
-    { key: 'day',  sel: '[data-tour="menu-day"]', skipIf: () => !!document.querySelector('.day-body') },
+    { key: 'day',  sel: '[data-tour="menu-day"]', skipIf: () => !!document.querySelector('.day-body'), nextOpens: true },
     { key: 'swap', sel: '[data-tour="menu-swap"]', wait: true },
     { key: 'log',  sel: '[data-tour="menu-log"]',  wait: true },
   ],

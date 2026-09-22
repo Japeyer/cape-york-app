@@ -12,6 +12,7 @@
     "osm:refresh": "node scripts/fetch-osm.mjs",
     "geo:refresh": "node scripts/fetch-osm-geo.mjs",
     "privacy:build": "node scripts/build-privacy.mjs",
+    "img:gen": "node scripts/gen-image.mjs",
     "prebuild": "node scripts/build-privacy.mjs"
   },
   "dependencies": {

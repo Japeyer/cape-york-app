@@ -215,6 +215,46 @@ describe('PageTour — Robustheit', () => {
   })
 })
 
+// Nummerierung + Next-Verlässlichkeit: die Anzeige „X of Y" zählt nur Schritte, die in
+// diesem Zustand wirklich drankommen können (kein skipIf, Ziel vorhanden oder entsteht per
+// wait) — sonst startet die Zählung bei 2 oder das Total zählt unsichtbare Schritte mit.
+// Und Next darf nie in einen unsichtbaren 2s-Wartezustand führen: Folge-Schritte, deren
+// Ziel nur durch die gerade ABGELEHNTE Aktion entstehen würde, werden sofort übersprungen.
+describe('PageTour — Nummerierung + Next', () => {
+  const count = () => document.querySelector('.tour-pop-count')?.textContent
+
+  it('übersprungene Schritte zählen nicht mit: einziger sichtbarer Schritt = "1 of 1"', () => {
+    host = anchors('inv-add')            // weder empty- noch row-Ziel vorhanden
+    mount(<PageTour page="inventory" />)
+    expect(popText()).toContain(S.tours.inventory.add.title)
+    expect(count()).toBe('1 of 1')
+  })
+
+  it('Zählung startet bei 1 und läuft lückenlos durch die sichtbaren Schritte', async () => {
+    host = anchors('inv-row', 'inv-add')   // empty fehlt (Stock hat schon Items)
+    mount(<PageTour page="inventory" />)
+    expect(count()).toBe('1 of 2')
+    await tap(host.querySelector('[data-tour="inv-row"]'))
+    expect(count()).toBe('2 of 2')
+  })
+
+  it('Next überspringt unerreichbare wait-Schritte sofort (kein unsichtbarer Wartezustand)', () => {
+    // Tag schon offen (skipIf am day-Schritt) → Tour startet beim Swap-Schritt. Der
+    // Log-Schritt (wait) hat kein Ziel und ist nach Next unerreichbar — die Tour muss
+    // SOFORT sauber enden statt 2 s unsichtbar zu warten. (Der day-Schritt selbst hat
+    // `nextOpens` und führt den Tap aus — deshalb testet dieser Fall den Swap-Schritt.)
+    host = anchors('menu-swap')
+    const openBody = document.createElement('div')
+    openBody.className = 'day-body'
+    host.appendChild(openBody)
+    mount(<PageTour page="menu" />)
+    expect(popText()).toContain(S.tours.menu.swap.title)
+    act(() => tourBtn(/next/i).click())
+    expect(pop()).toBeFalsy()
+    expect(getToursSeen()).toContain('menu')
+  })
+})
+
 // ── Integration: greifen die data-tour-Anker in der ECHTEN App? ────────────
 // Der Rest der Datei testet PageTour isoliert — hier läuft die App selbst, damit ein
 // umbenannter/verschobener Anker (Menu-Tag → Swap-Button) sofort auffällt.
@@ -235,6 +275,10 @@ describe('PageTour — in der echten App', () => {
   }
   const openTrip = () => document.querySelector('[data-tour="home-open"]').click()
   const navBtn = (label) => [...document.querySelectorAll('.nav-btn')].find(b => (b.textContent || '').includes(label))
+  // Der Wizard öffnet auf dem Namens-Schritt (Trip-Name + Beschreibung). Diese Tests
+  // zielen auf den Datums-Schritt dahinter — ein Next bringt uns dorthin.
+  const toDatesStep = () =>
+    act(() => [...document.querySelectorAll('button')].find(b => /next/i.test(b.textContent)).click())
 
   // ── Trip-Erstellung: der Wizard erklärt jeden Schritt am Element ──
   // Der Datums-Schritt endet NICHT am Tap (eine Range braucht zwei Taps), sondern am
@@ -244,6 +288,7 @@ describe('PageTour — in der echten App', () => {
     markTourSeen('home')
     mount(<App />)
     act(() => [...document.querySelectorAll('button')].find(b => /edit/i.test(b.textContent)).click())
+    toDatesStep()
 
     // Range steht schon (Edit-Modus) → Kalender-Schritt entfällt, der Tag ist dran.
     expect(popText()).toContain(S.tours['config-dates'].day.title)
@@ -261,9 +306,26 @@ describe('PageTour — in der echten App', () => {
     expect(document.querySelector('[data-tour="cfg-restaurant"]')).toBeTruthy()
   })
 
+  // Next darf die Stop-/Restaurant-Erklärung nicht verschlucken: wer beim „Tag antippen"-
+  // Schritt Next drückt, statt selbst zu tippen, bekommt das DaySheet von der Tour geöffnet
+  // (`nextOpens`) — die Mechanik der Zwischenstops wird IMMER gezeigt.
+  it('Wizard Schritt 1: Next auf dem Tag-Schritt öffnet das DaySheet und erklärt den Stop', async () => {
+    seedTrip()
+    markTourSeen('home')
+    mount(<App />)
+    act(() => [...document.querySelectorAll('button')].find(b => /edit/i.test(b.textContent)).click())
+    toDatesStep()
+    expect(popText()).toContain(S.tours['config-dates'].day.title)
+
+    await act(async () => { tourBtn(/next/i).click() })
+    expect(document.querySelector('.sheet-backdrop')).toBeTruthy()
+    expect(popText()).toContain(S.tours['config-dates'].stop.title)
+  })
+
   it('Wizard Schritt 1 ohne Datum: Kalender-Schritt bleibt stehen, bis eine Range steht', () => {
     mount(<App />)                               // leerer Start
     act(() => document.querySelector('[data-tour="home-create"]').click())
+    toDatesStep()
 
     expect(popText()).toContain(S.tours['config-dates'].calendar.title)
     // Ein einzelner Tag-Tap ist erst der Start der Range → Schritt bleibt stehen.
@@ -278,6 +340,7 @@ describe('PageTour — in der echten App', () => {
     markTourSeen('config-dates')
     mount(<App />)
     act(() => [...document.querySelectorAll('button')].find(b => /edit/i.test(b.textContent)).click())
+    toDatesStep()
     expect(pop()).toBeFalsy()                    // Schritt 1 schon gesehen
 
     act(() => [...document.querySelectorAll('button')].find(b => /next/i.test(b.textContent)).click())

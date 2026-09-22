@@ -1191,6 +1191,20 @@ describe('generate() — cookEffort filtert den Plan', () => {
     expect(efforts.includes('hard')).toBe(false)
   })
 
+  // Abwärtskompatibilität: 'high' ist eine PRÄFERENZ, kein Ausschluss. Ein easy-Rezept mit
+  // klarem Waste-Vorteil (offene verderbliche Packung aufbrauchen, angebrochene Grundzutat
+  // teilen) muss weiterhin im Plan landen können — die harte Tier-Reduktion drückte Dinner
+  // auf ~1 easy von 15. Gleichzeitig bleibt aufwändig in der Mehrheit (sonst bf-Regression).
+  it("cookEffort 'high' schließt easy-Rezepte nicht aus (weiche Präferenz, Dinner-Mix)", () => {
+    const r = generate(defaults({ days: 16, cookEffort: 'high' }))
+    const dinnerEfforts = r.plan
+      .map(p => p.ab)
+      .filter(meal => meal && meal.r && EFFORT_BY_ID[meal.r])
+      .map(meal => EFFORT_BY_ID[meal.r])
+    expect(dinnerEfforts.filter(e => e === 'easy').length).toBeGreaterThanOrEqual(3)
+    expect(dinnerEfforts.filter(e => e !== 'easy').length).toBeGreaterThanOrEqual(8)
+  })
+
   it('config trägt cookEffort + cookEffortApplied', () => {
     const r = generate(defaults({ cookEffort: 'low' }))
     expect(r.config.cookEffort).toBe('low')
@@ -1290,6 +1304,19 @@ describe('Zutaten-Konsistenz über den ganzen Pool', () => {
     const mixed = [...byKey.entries()].filter(([, s]) => s.size > 1)
       .map(([k, s]) => `${k}: {${[...s].join(',')}}`)
     expect(mixed).toEqual([])
+  })
+
+  // Rezepte sind stop-agnostisch: Trips sind voll konfigurierbar (Bamaga optional, Stops
+  // wählbar, Stufe-2-Geo-Erweiterung geplant) — kein Rezept-Text darf einen konkreten
+  // Versorgungspunkt voraussetzen. Vorwärts-Schutz: neue Rezepte mit Stop-Namen fallen sofort auf.
+  it('kein Rezept referenziert einen konkreten Stop (Name, Zutaten, Schritte, Tipp)', () => {
+    const STOP_RX = /\b(bamaga|cairns|cooktown|coen|archer river|weipa|seisia)\b/i
+    const offenders = []
+    for (const r of RECIPES) {
+      const texts = [r.name, r.tip || '', ...(r.steps || []), ...r.ing.flat()]
+      for (const t of texts) if (STOP_RX.test(t)) offenders.push(`${r.id}: "${t}"`)
+    }
+    expect(offenders).toEqual([])
   })
 })
 

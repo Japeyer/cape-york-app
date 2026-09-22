@@ -4,14 +4,17 @@
 
 export const S = {
   app: {
-    title: 'Cape York 2026',
+    title: 'Cape York',
     titleNewTrip: 'New trip',
     titleEditing: 'Edit trip',
     subEditing: 'Tap "Update plan" to save changes',
-    // Tabs für Supply Points (Cairns/Bamaga/…) kommen aus REGION.supplyPoints[*].name (regions.js).
+    // Die Supply Points (Cairns/Bamaga/…) haben keine eigenen Tabs mehr — sie liegen
+    // hinter dem Shopping-Eintrag (ShopStopSheet). Ihre Namen kommen weiterhin
+    // aus REGION.supplyPoints[*].name (regions.js).
     tabs: {
       menu: 'Menu',
       recipes: 'Recipes',
+      shopping: 'Shopping',
       map: 'Map',
       inventory: 'Stock',
     },
@@ -232,11 +235,25 @@ export const S = {
     },
     // Ein Eintrag pro Wizard-Schritt. `key` steuert AUCH das Seiten-Tutorial des Schritts
     // (`S.tours['config-' + key]`) — Schlüssel hier ändern heißt: dort mit ändern.
+    // Diese Liste ist die EINZIGE Quelle für die Schrittzahl: ConfiguratorTab leitet
+    // `totalSteps` daraus ab und TripProgress rendert entsprechend viele Wegpunkte.
+    // Einen Schritt hinzufügen = hier einen Eintrag ergänzen + das Panel in
+    // ConfiguratorTab rendern; an der Fortschrittsleiste ist nichts zu tun.
     steps: [
+      { key: 'name',    title: 'Trip name' },
       { key: 'dates',   title: 'Dates & route' },
       { key: 'group',   title: 'Group & diet' },
       { key: 'kitchen', title: 'Cooking & gear' },
     ],
+    // Schritt 1 — Name + optionale Beschreibung. Beides hängt am Trip (store.trips[]),
+    // nicht an der Config; siehe setTripMetaInStore in hooks/useStorage.js.
+    tripNameLabel: 'Trip name',
+    tripNameHint: 'Give it a name you\'ll recognise later.',
+    tripNamePlaceholder: 'Cape York trip',
+    tripDescLabel: 'Description',
+    tripDescOptional: 'optional',
+    tripDescHint: 'Notes for yourself — who\'s coming, what this trip is about.',
+    tripDescPlaceholder: 'Two weeks up the Cape, fishing gear in the ute…',
     daysLabel: 'Trip length',
     daysNotSelected: 'Tap a start day in the calendar, then your end day.',
     daysSelected: ({ days }) => `${days} ${days === 1 ? 'day' : 'days'} selected`,
@@ -295,10 +312,7 @@ export const S = {
     calendarHintPickEnd: 'Now tap your return day. Tap the same day twice for a single-day trip.',
     calendarHintView: 'Tap any trip day to mark resupply stops or eating out.',
     calendarTip: '💡 Tap any trip day to plan eating out or mark a resupply stop.',
-    specialHint: ({ count }) =>
-      count === 1
-        ? '✨ Your plan will include 1 special evening dinner — a premium meal for variety.'
-        : `✨ Your plan will include ${count} special evening dinners — premium meals for variety.`,
+    calendarTipCta: ({ day }) => `Try it — open Day ${day} ▸`,
     calendar: {
       monthNames: ['January','February','March','April','May','June','July','August','September','October','November','December'],
       weekdays:     ['Mo','Tu','We','Th','Fr','Sa','Su'],
@@ -351,6 +365,10 @@ export const S = {
       lunch: 'Lunch',
       dinner: 'Dinner',
     },
+    // Label im Tag-Kästchen des Kartenkopfs; die Zahl steht darunter ("Day" / "1").
+    dayShort: 'Day',
+    // Trenner der Mahlzeiten-Zusammenfassung im zugeklappten Kartenkopf.
+    mealSep: ' · ',
     summary: {
       restaurant: 'Restaurant',
       breakfasts: 'Breakfasts',
@@ -510,7 +528,7 @@ export const S = {
     accountStatusPremium: 'Premium is active on this device.',
     accountKeyShown: ({ key }) => `License key: ${key}`,
     activateLabel: 'Enter license key',
-    activatePlaceholder: 'CY26-XXXX-XXXX-XXXX',
+    activatePlaceholder: 'XXXX-XXXX-XXXX-XXXX',
     activateCta: 'Activate',
     activateSuccess: '✓ Premium activated.',
     activateError: 'Invalid license key. Check your email or contact support.',
@@ -530,7 +548,7 @@ export const S = {
   },
 
   about: {
-    appName: 'Cape York 2026',
+    appName: 'Cape York',
     tagline: 'Trip planner for Cape York 4WD camping — menu, recipes, shopping list.',
 
     privacyHeading: 'Your data',
@@ -574,6 +592,11 @@ export const S = {
     progress: {
       cairns: 'Shopping Cairns',
       bamaga: 'Shopping Bamaga',
+    },
+    // Popup über der Bottom-Nav (ShopStopSheet) — erscheint nur bei mehr als einem Stop.
+    stopPicker: {
+      title: 'Shopping lists',
+      sub: 'One list per resupply stop.',
     },
     hideChecked: ({ count }) => `👁 Hide ${count} checked`,
     showChecked: ({ count }) => `👁 Show ${count} checked`,

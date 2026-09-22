@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { S } from '../strings.js'
 import { Sheet } from './DaySheet.jsx'
 import { compatibleRecipesForCat, needsSequentialCooking } from '../lib/generator.js'
+import { FoodIcon } from './food-icons.jsx'
 import VeganBadge from './VeganBadge.jsx'
 
 const SLOT_TO_CAT = { f: 'f', m: 'm', ab: 'a' }
@@ -53,7 +54,7 @@ export default function SwapSheet({ open, dayNum, slot, currentRecipeId, config,
         className={`swap-card${r.id === currentRecipeId ? ' active' : ''}${r.occasion === 'special' ? ' swap-card-special' : ''}`}
         onClick={() => { onPick(r.id); onClose() }}
       >
-        <div className="swap-card-icon">{r.icon}</div>
+        <div className="swap-card-icon"><FoodIcon icon={r.icon} size={24} /></div>
         <div className="swap-card-info">
           <div className="swap-card-name">
             {r.name}

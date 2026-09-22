@@ -12,6 +12,8 @@
   --rd: #B52525;
   --am: #8A6200;
   --navh: 64px;
+  /* Hoehe der fixierten Wizard-Fortschrittsleiste (components/TripProgress.jsx) */
+  --cfgbar: 96px;
   --toph: 56px;
   --radius: 14px;
 

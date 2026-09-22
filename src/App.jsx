@@ -9,13 +9,15 @@ import RecipesTab from './components/RecipesTab.jsx'
 import InventoryTab from './components/InventoryTab.jsx'
 import InfoMapTab from './components/InfoMapTab.jsx'
 import ShoppingTab from './components/ShoppingTab.jsx'
+import ShopStopSheet from './components/ShopStopSheet.jsx'
+import { MenuIcon, RecipesIcon, ShoppingIcon, InventoryIcon, KangarooIcon } from './components/icons.jsx'
 import PageTour from './components/PageTour.jsx'
 import { REGION } from './data/regions.js'
 import { generate } from './lib/generator.js'
 import {
   saveConfig, defaultConfig, resetAllShoppingState,
   loadTripStore, saveTripStore, setActiveNamespace, wipeTripVolatile, defaultTripName,
-  getActiveTrip, createTripInStore, deleteTripFromStore, renameTripInStore, setActiveInStore,
+  getActiveTrip, createTripInStore, deleteTripFromStore, renameTripInStore, setActiveInStore, setTripMetaInStore,
   getUserRecipes, upsertUserRecipe, deleteUserRecipe,
 } from './hooks/useStorage.js'
 import { setUserRecipes } from './lib/recipe-pool.js'
@@ -37,15 +39,20 @@ const MAP_ENABLED = false
 // Der Configurator-Tab ist absichtlich NICHT in der Tab-Leiste — Trip-Edit geht nur via
 // "Edit trip" auf der Home-Card. So fühlt sich der geplante Trip "definitiver" an und
 // Listen sind verlässlich (keine versehentlichen Re-Generierungen durch Tab-Klicks).
+//
+// Rückgabe = ALLE erreichbaren Ziele, inkl. der Versorgungspunkte. Das bleibt die
+// Quelle der Wahrheit für activeTab/activeSupplyPoint/Scroll-Restore — die Stops sind
+// aber KEINE eigenen Nav-Buttons mehr (siehe buildNavItems).
 function buildActiveTripTabs(bamagaStop, enabledStops, days, premium) {
-  // Aktivierte Shopping-Stops bleiben in der Bottom-Nav sichtbar — Free-User
-  // sehen Bamaga/Cooktown/etc. mit 🔒-Marker (locked: true), ShoppingTab rendert
-  // den Inhalt dann geblurrt mit Premium-Sticker. So merkt der User in der Tab-
-  // Leiste schon, was er mit Premium kriegen würde.
+  // Aktivierte Shopping-Stops bleiben erreichbar — Free-User sehen Bamaga/Cooktown/etc.
+  // mit 🔒-Marker (locked: true), ShoppingTab rendert den Inhalt dann geblurrt mit
+  // Premium-Sticker. So sieht der User schon im Stop-Popup, was Premium brächte.
   return [
-    { id: 'menu',      icon: '📅',   label: S.app.tabs.menu,      supplyPoint: null, locked: false },
-    { id: 'recipes',   icon: '👨‍🍳', label: S.app.tabs.recipes,   supplyPoint: null, locked: false },
-    { id: 'inventory', icon: '📦',   label: S.app.tabs.inventory, supplyPoint: null, locked: false },
+    { id: 'menu',      icon: <MenuIcon />, label: S.app.tabs.menu,      supplyPoint: null, locked: false },
+    { id: 'recipes',   icon: <RecipesIcon />, label: S.app.tabs.recipes,   supplyPoint: null, locked: false },
+    { id: 'inventory', icon: <InventoryIcon />, label: S.app.tabs.inventory, supplyPoint: null, locked: false },
+    // Map führt als einziger Eintrag noch ein Emoji — rendert aber nie, solange
+    // MAP_ENABLED false ist. Bei Reaktivierung braucht es ein Icon aus icons.jsx.
     ...(MAP_ENABLED
       ? [{ id: 'map', icon: '🗺️', label: S.app.tabs.map, supplyPoint: null, locked: false }]
       : []),
@@ -62,6 +69,37 @@ function buildActiveTripTabs(bamagaStop, enabledStops, days, premium) {
         locked: !premium && !FREE_LIMITS.shoppingAllowedStopIds.includes(sp.id),
       })),
   ]
+}
+
+// Icon des Shopping-Eintrags in der Bottom-Nav — Einkaufstüte aus dem SVG-Linien-Set.
+// Vormals das 🛒-Emoji, dasselbe das Cairns in regions.js führt. Die Versorgungspunkte
+// in regions.js tragen weiterhin Emoji; sie erscheinen im ShopStopSheet, nicht in der Nav.
+const SHOP_NAV_ICON = <ShoppingIcon />
+const SHOP_NAV_ID = 'shopping'
+
+// Bottom-Nav aus den Tabs ableiten. Reihenfolge folgt dem Ablauf einer Reise:
+// planen → kochen → einkaufen → Bestand prüfen.
+//
+// Die Versorgungspunkte stehen NICHT einzeln in der Leiste: bei allen aktivierten Stops
+// (Cairns + Cooktown + Coen + Archer + Weipa + Bamaga) wären das 9 Buttons auf 360 px,
+// also ~40 px pro Button. Sie liegen stattdessen hinter dem Shopping-Eintrag, der ein
+// Popup über der Nav aufklappt (ShopStopSheet). Bei genau einem Stop entfällt das Popup.
+function buildNavItems(tabs) {
+  const stops = tabs.filter(t => t.supplyPoint)
+  const pick = (id) => tabs.find(t => t.id === id)
+  const items = []
+  for (const id of ['menu', 'recipes']) {
+    const tab = pick(id)
+    if (tab) items.push(tab)
+  }
+  if (stops.length) {
+    items.push({ id: SHOP_NAV_ID, icon: SHOP_NAV_ICON, label: S.app.tabs.shopping, stops })
+  }
+  for (const id of ['inventory', 'map']) {
+    const tab = pick(id)
+    if (tab) items.push(tab)
+  }
+  return items
 }
 
 export default function App() {
@@ -209,6 +247,26 @@ export default function App() {
     [result.config.bamagaStop, enabledStopsHash, result.config.days, premium]
   )
   const activeSupplyPoint = TABS.find(t => t.id === activeTab)?.supplyPoint
+  const NAV_ITEMS = useMemo(() => buildNavItems(TABS), [TABS])
+
+  // Stop-Popup über der Bottom-Nav (nur bei mehr als einem Versorgungspunkt).
+  const [shopNavOpen, setShopNavOpen] = useState(false)
+  const closeShopNav = useCallback(() => setShopNavOpen(false), [])
+  const handleShopNav = useCallback((stops) => {
+    // Ein einziger Stop (nur Cairns, keine Zwischenstopps) → direkt auf dessen Liste,
+    // ein Popup mit genau einem Eintrag wäre nur ein zusätzlicher Tap.
+    if (stops.length === 1) {
+      setActiveTab(stops[0].id)
+      return
+    }
+    setShopNavOpen(true)
+  }, [])
+  const handlePickStop = useCallback((id) => {
+    setActiveTab(id)
+    setShopNavOpen(false)
+  }, [])
+  // Popup nie über einen Ansichtswechsel hinweg offen lassen (Back auf Home, Trip-Edit).
+  useEffect(() => { if (view !== 'trip-active') setShopNavOpen(false) }, [view])
 
   // Wenn der User vorher auf einem Supply-Tab war und ihn gerade ausgeschaltet hat
   // (z.B. Cooktown deactiviert beim Edit), existiert der Tab nicht mehr → zurück auf Menu.
@@ -254,9 +312,20 @@ export default function App() {
 
   // Trip-Edit-Submit: Config speichern und ZURÜCK in trip-active. Vorher-Tab beibehalten
   // wenn er noch existiert; sonst Menu.
-  const handleConfigSubmit = useCallback((next) => {
+  const handleConfigSubmit = useCallback((next, meta) => {
     saveConfig(next)
     setConfig(next)
+    // Name + Beschreibung aus Wizard-Schritt 1 liegen am Trip, nicht in der Config —
+    // deshalb ein zweiter Schreibvorgang in den Store. saveConfig() zuerst, damit der
+    // frisch geladene Store die aktualisierte Config schon enthält.
+    if (meta) {
+      const cur = loadTripStore()
+      if (cur.activeTripId) {
+        const nextStore = setTripMetaInStore(cur, cur.activeTripId, meta)
+        saveTripStore(nextStore)
+        setStore(nextStore)
+      }
+    }
     setView('trip-active')
     setActiveTab(prev => prev || 'menu')
   }, [])
@@ -427,7 +496,7 @@ export default function App() {
           </button>
         )}
         <div className="topbar-titles">
-          <div className="topbar-title">🦘 {topbarTitle}</div>
+          <div className="topbar-title"><KangarooIcon className="topbar-mark" /><span className="topbar-title-text">{topbarTitle}</span></div>
           {topbarSub && <div className="topbar-sub">{topbarSub}</div>}
         </div>
         {showAccountBtn && (
@@ -490,6 +559,8 @@ export default function App() {
           <ConfiguratorTab
             key={config.completed ? 'edit' : 'fresh'}
             config={config}
+            tripName={getActiveTrip(store)?.name || ''}
+            tripDescription={getActiveTrip(store)?.description || ''}
             onSubmit={handleConfigSubmit}
             onResetAll={resetAll}
             premium={premium}
@@ -556,20 +627,52 @@ export default function App() {
           Funktion hervorgehoben + bedienbar. `key` → beim Seitenwechsel frisch aufsetzen. */}
       {tourPage && <PageTour key={tourPage} page={tourPage} />}
 
+      {/* Stop-Auswahl der Einkaufslisten — klappt über der Nav auf, deshalb hier
+          neben (nicht in) der <nav>. */}
+      {view === 'trip-active' && shopNavOpen && (
+        <ShopStopSheet
+          stops={TABS.filter(t => t.supplyPoint)}
+          activeId={activeSupplyPoint ? activeTab : null}
+          onPick={handlePickStop}
+          onClose={closeShopNav}
+        />
+      )}
+
       {view === 'trip-active' && (
         <nav className="bottom-nav">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              className={`nav-btn${activeTab === tab.id ? ' active' : ''}${tab.locked ? ' nav-btn-locked' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <span className="nav-icon">{tab.icon}</span>
-              <span className="nav-label">
-                {tab.locked && '🔒 '}{tab.label}
-              </span>
-            </button>
-          ))}
+          {NAV_ITEMS.map(item => {
+            // Der Shopping-Eintrag steht für ALLE Versorgungspunkte: aktiv, sobald
+            // irgendeine Einkaufsliste offen ist (oder das Popup gerade aufklappt).
+            if (item.stops) {
+              const active = !!activeSupplyPoint || shopNavOpen
+              return (
+                <button
+                  key={item.id}
+                  data-nav="shopping"
+                  className={`nav-btn${active ? ' active' : ''}`}
+                  aria-haspopup={item.stops.length > 1 ? 'menu' : undefined}
+                  aria-expanded={item.stops.length > 1 ? shopNavOpen : undefined}
+                  onClick={() => handleShopNav(item.stops)}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-label">{item.label}</span>
+                </button>
+              )
+            }
+            return (
+              <button
+                key={item.id}
+                data-nav={item.id}
+                className={`nav-btn${activeTab === item.id ? ' active' : ''}${item.locked ? ' nav-btn-locked' : ''}`}
+                onClick={() => { setShopNavOpen(false); setActiveTab(item.id) }}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-label">
+                  {item.locked && '🔒 '}{item.label}
+                </span>
+              </button>
+            )
+          })}
         </nav>
       )}
     </div>

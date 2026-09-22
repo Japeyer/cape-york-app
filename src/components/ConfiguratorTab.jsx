@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import TripProgress from './TripProgress.jsx'
 import { S } from '../strings.js'
 import {
   TYPES, APPETITES,
@@ -14,7 +15,6 @@ import PageTour from './PageTour.jsx'
 import { parseISO, addDays } from '../lib/dates.js'
 import { ALLERGENS } from '../lib/allergens.js'
 import { REGION } from '../data/regions.js'
-import { estimateSpecialCount } from '../lib/generator.js'
 
 const DIETS = ['omnivore', 'vegetarian', 'vegan']
 const COOK_EFFORT_OPTS = ['low', 'medium', 'high']
@@ -206,7 +206,13 @@ function GroupEditor({ people, onChange }) {
   )
 }
 
-export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium, onUpgrade }) {
+export default function ConfiguratorTab({ config, tripName, tripDescription, onSubmit, onResetAll, premium, onUpgrade }) {
+  // Name + Beschreibung gehören zum Trip, nicht zur Config — deshalb eigener State neben
+  // `draft` und Rückgabe als zweites onSubmit-Argument.
+  const [meta, setMeta] = useState(() => ({
+    name: tripName || '',
+    description: tripDescription || '',
+  }))
   const [draft, setDraft] = useState(() => ({
     // days=0/startDate=null = "Range noch nicht gewählt" → Calendar im Range-Select-Mode.
     days: Number.isFinite(config.days) ? config.days : 0,
@@ -241,20 +247,33 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
   const isOnboarding = !config.completed
   const cta = isOnboarding ? S.config.generateCta : S.config.updateCta
   const hasRange = draft.days >= 1 && !!draft.startDate
+  // Beispiel-Tag für den Kalender-Tipp: Trip-Mitte, nie Tag 1/letzter Tag (dort bietet
+  // das DaySheet keine Resupply-Optionen; gleiche Formel wie der Tutorial-Anker in
+  // TripCalendar). Der Tipp ist damit antippbar: ein Tap ÖFFNET das DaySheet, statt die
+  // Mechanik nur zu beschreiben — der passive Hinweis wurde oft übersehen.
+  const tipDayNum = hasRange && draft.days >= 3
+    ? Math.min(Math.max(2, Math.round(draft.days / 2)), draft.days - 1)
+    : null
   const update = (patch) => setDraft(d => ({ ...d, ...patch }))
 
   // ── Wizard-Schritt-Steuerung ──────────────────────────────────────
-  const STEPS = S.config.steps           // [{key,title,intro}] × 3
+  const STEPS = S.config.steps           // [{key,title}] — Länge bestimmt die Schrittzahl
   const totalSteps = STEPS.length
   const [step, setStep] = useState(0)
   const curStep = STEPS[step]
+  // Index des Datums-Schritts aus der Schrittliste lesen statt hart zu verdrahten — so
+  // verschiebt das Einfügen weiterer Schritte das Gate nicht versehentlich.
+  const DATES_STEP = STEPS.findIndex(s => s.key === 'dates')
 
-  // Schritt 1 (Datum) ist das Gate: ohne gewählten Zeitraum kein Weiter/kein Vorwärts-Sprung.
-  const canAdvance = step > 0 || hasRange
+  // Der Datums-Schritt ist das Gate: ohne gewählten Zeitraum geht es nicht darüber hinaus.
+  // Bis EINSCHLIESSLICH dahin ist der Weg frei — sonst käme man vom Namens-Schritt gar
+  // nicht erst zum Kalender.
+  const canAdvance = step < DATES_STEP || hasRange
   const goNext = () => { if (step < totalSteps - 1 && canAdvance) setStep(step + 1) }
   const goBack = () => setStep(s => Math.max(0, s - 1))
-  // Punkte antippen: rückwärts immer, vorwärts nur wenn ein Zeitraum gewählt ist (sonst Gate umgangen).
-  const jumpTo = (i) => { if (i <= step || hasRange) setStep(i) }
+  // Wegpunkte antippen: rückwärts immer, vorwärts frei bis zum Datums-Schritt,
+  // darüber hinaus nur mit gewähltem Zeitraum (sonst wäre das Gate umgehbar).
+  const jumpTo = (i) => { if (i <= step || i <= DATES_STEP || hasRange) setStep(i) }
 
   // Erklärt wird beim ersten Betreten eines Schritts per Spotlight-Tutorial (wie in den
   // Trip-Tabs) — die frühere Intro-Karte ist darin aufgegangen: statt eines Textblocks über
@@ -438,27 +457,50 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
           </>
         )}
 
-        {/* Schritt-Fortschritt: antippbare Punkte (vorwärts nur mit gewähltem Zeitraum) + Label. */}
-        <div className="cfg-steps">
-          <div className="cfg-steps-dots">
-            {STEPS.map((s, i) => (
-              <button
-                key={s.key}
-                className={`cfg-step-dot${i === step ? ' active' : ''}${i < step ? ' done' : ''}`}
-                onClick={() => jumpTo(i)}
-                disabled={i > step && !hasRange}
-                aria-label={s.title}
-                aria-current={i === step ? 'step' : undefined}
-              />
-            ))}
-          </div>
-          <div className="cfg-steps-label">
-            {S.config.wizard.stepOf({ cur: step + 1, total: totalSteps })} · {curStep.title}
-          </div>
-        </div>
-
-        {/* ── Schritt 1: Datum & Route ── */}
+        {/* ── Schritt 1: Name & Beschreibung ──
+            Kein Gate: der Name ist vorausgefüllt, die Beschreibung optional. Wer nichts
+            eintragen will, klickt durch. Beides landet am Trip, nicht in der Config. */}
         {step === 0 && (
+          <div className="cfg-step-panel">
+            <div className="cfg-row">
+              <div className="cfg-row-head">
+                <div className="cfg-label">{S.config.tripNameLabel}</div>
+                <div className="cfg-hint">{S.config.tripNameHint}</div>
+              </div>
+              <input
+                className="cfg-input"
+                data-cfg="trip-name"
+                type="text"
+                maxLength={60}
+                value={meta.name}
+                placeholder={S.config.tripNamePlaceholder}
+                onChange={e => setMeta(m => ({ ...m, name: e.target.value }))}
+              />
+            </div>
+
+            <div className="cfg-row">
+              <div className="cfg-row-head">
+                <div className="cfg-label">
+                  {S.config.tripDescLabel}
+                  <span className="cfg-optional">{S.config.tripDescOptional}</span>
+                </div>
+                <div className="cfg-hint">{S.config.tripDescHint}</div>
+              </div>
+              <textarea
+                className="cfg-input cfg-textarea"
+                data-cfg="trip-desc"
+                rows={3}
+                maxLength={300}
+                value={meta.description}
+                placeholder={S.config.tripDescPlaceholder}
+                onChange={e => setMeta(m => ({ ...m, description: e.target.value }))}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── Schritt 2: Datum & Route ── */}
+        {step === 1 && (
           <div className="cfg-step-panel">
             <div className="cfg-row">
               <div className="cfg-row-head">
@@ -485,14 +527,19 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
               onTapDay={handleTapDay}
             />
 
-            {hasRange && (
+            {hasRange && (tipDayNum ? (
+              <button className="cfg-calendar-tip" onClick={() => handleTapDay(tipDayNum)}>
+                <span>{S.config.calendarTip}</span>
+                <span className="cfg-calendar-tip-cta">{S.config.calendarTipCta({ day: tipDayNum })}</span>
+              </button>
+            ) : (
               <div className="cfg-calendar-tip">{S.config.calendarTip}</div>
-            )}
+            ))}
           </div>
         )}
 
         {/* ── Schritt 2: Gruppe & Ernährung ── */}
-        {step === 1 && (
+        {step === 2 && (
           <div className="cfg-step-panel">
             <GroupEditor
               people={draft.people}
@@ -553,7 +600,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
         )}
 
         {/* ── Schritt 3: Küche & Ausrüstung ── */}
-        {step === 2 && (
+        {step === 3 && (
           <div className="cfg-step-panel">
             <PillPicker
               dataTour="cfg-effort"
@@ -596,20 +643,6 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
               locked={!premium}
               onUpgrade={onUpgrade}
             />
-
-            {/* Special-Dinner-Preview vor dem Generieren — nutzt alle jetzt gesetzten Werte. */}
-            {hasRange && (() => {
-              const specialCount = estimateSpecialCount({
-                days: draft.days,
-                bamagaStop: draft.bamagaStop,
-                diet: draft.diet,
-                burners: draft.burners,
-                allergens: draft.allergens,
-                cookEffort: draft.cookEffort,
-              })
-              if (specialCount === 0) return null
-              return <div className="cfg-special-hint">{S.config.specialHint({ count: specialCount })}</div>
-            })()}
           </div>
         )}
 
@@ -626,7 +659,7 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
             <button
               className="gen-btn cfg-nav-gen"
               data-tour="cfg-generate"
-              onClick={() => onSubmit({ ...draft, completed: true })}
+              onClick={() => onSubmit({ ...draft, completed: true }, meta)}
               disabled={!hasRange}
             >
               {cta}
@@ -649,6 +682,17 @@ export default function ConfiguratorTab({ config, onSubmit, onResetAll, premium,
           </div>
         )}
       </div>
+
+      {/* Schritt-Fortschritt: am unteren Bildschirmrand fixiert, damit er beim Scrollen
+          durch die Formulare sichtbar bleibt. Steht hier am Ende von .cfg-wrap, damit
+          DOM-Reihenfolge und visuelle Reihenfolge übereinstimmen (Screenreader). */}
+      <TripProgress
+        step={step}
+        total={totalSteps}
+        onJump={jumpTo}
+        canJump={hasRange}
+        stepTitle={curStep.title}
+      />
 
       <DaySheet
         open={openDay !== null}

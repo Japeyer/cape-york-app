@@ -5,6 +5,1056 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-09-22 (cc) — Fortschritts-Auto freigestellt: Farben per API invertiert (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Invertiere das Auto-Bild über die API und ChatGPT ausdrücklich nicht
+über Vektor-Zeichnungen, das hat bis jetzt noch nie gut ausgesehen, und der Rest des Icons soll
+transparent sein, sodass in der App dann nur das orange Auto sichtbar ist."
+
+**Vorgehen wie gewünscht: erst das Bild erzeugen, dann einbauen.**
+
+### 1. Bild
+
+`scripts/gen-image.mjs` im Edit-Modus mit `icon-concept-B.png` als Vorlage, Prompt auf
+Farbumkehr: weiss wird `#C0600C`, orange wird transparent, Form pixelgenau unverändert.
+`--transparent` setzt `background: transparent` — funktioniert auch über `/v1/images/edits`.
+
+Ergebnis nachgemessen statt geglaubt: Farbtyp 6 (RGBA), **71.2 % der Fläche transparent**,
+die deckenden Pixel sind orange (häufigste Farbe `#B95404`). Alle Details des Originals
+erhalten — Dachzelt, Dachträger, Fenster, beide Räder mit Profil, Reserverad.
+
+**Kosten:** 1153 in / 439 out Token ≈ **2,2 Cent**. Gesamtverbrauch der API ≈ **19,6 Cent**.
+
+### 2. Einbau
+
+- Auf den Bildinhalt zugeschnitten: Alpha-Bounding-Box ist `x 42..981, y 131..867`, also
+  940 × 737 statt 1024 × 1024 — sonst bestünde ein Drittel der Kachel aus Luft.
+- Auf **104 × 82** skaliert (doppelte Anzeigegrösse 52 × 41), 7.7 KB.
+- `.cfg-car`: abgerundete Kachel und Schlagschatten entfernt — die waren nur nötig, solange
+  das Bild einen deckenden orangen Hintergrund hatte. `margin-bottom: -1px` setzt die Räder
+  auf die Fahrbahn statt sie darüber schweben zu lassen.
+- **`--cfgbar` 88 → 96 px**, Innenabstand oben 34 → 48 px: Das freigestellte Fahrzeug ist
+  41 px hoch und sitzt ÜBER der Strasse. Mit dem alten Abstand wäre das Dachzelt oben
+  abgeschnitten worden.
+
+### Nebenbefund: Wizard hat jetzt vier Schritte
+
+Parallel kam ein „Trip name"-Schritt dazu (`S.config.steps`, 3 → 4). **Die Leiste musste dafür
+nicht angefasst werden** — sie richtet sich nach `total` und verteilt die Wegpunkte selbst.
+Geprüft: vier Wegpunkte, drei Sprünge, „Step 1 of 4".
+
+455 Tests grün (25 Dateien), Build grün. Precache 1677 KiB (das freigestellte Bild ist mit
+7.7 KB sogar kleiner als die vorherige Kachel mit 10 KB).
+
+---
+
+## 2026-09-22 (cb) — Wizard-Schritt 1: Trip-Name + optionale Beschreibung (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ich hätte gerne, dass du eine erste Seite einfügst, wenn man einen
+neuen Trip plant, dass man zuerst einen Namen und eine Beschreibung mit Markierung, dass es
+optional ist, einfügst, dann soll auch der Progressionsbalken einen weiteren Schritt erhalten."
+Auf Nachfrage zum Edit-Modus: „Es kann auch auftauchen, wenn man beim Edit wieder an die erste
+Stelle zurückgeht, also genau auch so wie wenn man auf Create New Trip drückt." → **keine
+modusabhängige Schrittliste**, in beiden Modi identisch.
+
+**Parallelarbeit-Hinweis:** Am Fortschrittsbalken arbeitete gleichzeitig ein zweiter Agent
+(Eintrag (ca)). **`TripProgress.jsx` wurde hier nicht angefasst** — und musste es auch nicht:
+Die Komponente ist vollständig datengetrieben (`total`-Prop + `S.config.steps[i].title`). Der
+vierte Wegpunkt entsteht allein durch den neuen Eintrag in `S.config.steps`, weil
+`totalSteps = STEPS.length`. Das ist die saubere Naht zwischen den beiden Arbeitssträngen und
+in `strings.js` jetzt als Kommentar festgehalten, damit sie nicht versehentlich zugeschüttet wird.
+
+**Neuer Schritt 1 („Trip name"), vor dem Datum.** Zwei Felder:
+- **Name** — `<input>`, max. 60 Zeichen, **vorausgefüllt** mit dem bestehenden Trip-Namen
+  (bei neuen Trips der Default `Cape York trip`). Damit blockiert der Schritt niemanden, der
+  durchklicken will.
+- **Beschreibung** — `<textarea>`, max. 300 Zeichen, mit sichtbarem `optional`-Marker am Label.
+
+**Das Datums-Gate ist mitgewandert — und das war die eigentliche Fallhöhe.** Bisher galt
+`canAdvance = step > 0 || hasRange` und `jumpTo = i <= step || hasRange`. Mit dem neuen Schritt
+0 hätte die zweite Regel den Nutzer **auf dem Namens-Schritt eingesperrt**: ein Vorwärtssprung
+zum Kalender verlangte `hasRange`, das ohne Kalender aber nie wahr werden kann. Jetzt wird der
+Gate-Index aus der Schrittliste gelesen (`DATES_STEP = STEPS.findIndex(s => s.key === 'dates')`)
+statt hart verdrahtet, und die Regeln lauten „frei bis einschliesslich Datums-Schritt, darüber
+hinaus nur mit Zeitraum". Ein weiterer eingefügter Schritt verschiebt das Gate damit nicht mehr
+versehentlich.
+
+**Speicherort — bewusst am Trip, nicht in der Config:** `store.trips[]` führt `name` bereits
+(die Umbenennung auf der Home-Karte schreibt dorthin); eine Kopie in `cfg_v1` hätte zwei
+konkurrierende Quellen ergeben. `description` liegt daneben. Neue Funktion
+**`setTripMetaInStore(store, id, {name, description})`** in `useStorage.js`; ein leerer oder
+nur aus Leerzeichen bestehender Name lässt den bisherigen stehen, statt einen namenlosen Trip
+zu erzeugen. `loadTripStore()` normalisiert `description` auf `''` — alte Trips ohne das Feld
+brauchen keine Migration, der Spread erhält unbekannte Felder ohnehin.
+
+**Die Beschreibung wird auch angezeigt:** auf der Trip-Karte des Home-Screens unter dem Datum,
+per `-webkit-line-clamp: 2` auf zwei Zeilen gekappt. Sie nur einzusammeln und nirgends zu zeigen
+wäre totes Gewicht gewesen.
+
+**Geändert:** `strings.js` (Schritt-Eintrag + 7 Labels), `ConfiguratorTab.jsx` (Panel,
+`meta`-State, Props, Gate, Schritt-Indizes 0→1/1→2/2→3), `useStorage.js`, `App.jsx`
+(Props + zweiter Store-Schreibvorgang in `handleConfigSubmit`), `HomeTab.jsx`, `App.css`
+(`.cfg-input`/`.cfg-textarea`/`.cfg-optional`/`.home-trip-desc`).
+
+**Neu: `src/components/ConfiguratorTripMeta.test.jsx`** — 8 Tests, TDD (erst rot): Start auf dem
+Namens-Schritt in **beiden** Modi, „1 of 4" + vier Wegpunkte, Name vorausgefüllt/Beschreibung
+leer, `optional`-Marker sichtbar, Weiter ohne Eingabe, Speicherung im Store, Fallback bei
+geleertem Namen, Anzeige auf der Trip-Karte. Eigene Datei statt Erweiterung von
+`ConfiguratorTab.test.jsx` — wegen der Parallelarbeit am Wizard.
+
+**Fünf bestehende Tests mussten nachgezogen werden** (4× `PageTour.test.jsx`, 1×
+`ConfiguratorTab.test.jsx`): Sie setzten voraus, dass der Wizard direkt auf dem Datums-Schritt
+öffnet. Beide Dateien haben jetzt einen `toDatesStep()`-Helfer, der ein Next vorschaltet. Das
+war echte Regression durch die Änderung, kein Test-Rauschen — und genau der Grund, warum die
+volle Suite nach so einem Umbau laufen muss.
+
+**Kein Tutorial für den neuen Schritt.** `TOURS` hat keinen `config-name`-Eintrag; `PageTour`
+fängt das über `TOURS[page] || []` ab und zeigt schlicht nichts. Laut `tours.js` gilt eine Seite
+ohne gezeigten Schritt nicht als gesehen, es entsteht also auch kein falscher „gesehen"-Zustand.
+Zwei Textfelder erklären sich selbst; ein Spotlight dafür wäre eigener Auftrag.
+
+**449 → 455 Tests grün**, Build grün.
+
+---
+
+## 2026-09-22 (ca) — Fortschrittsleiste: Originalbild statt Nachzeichnung, unten fixiert (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Bitte verwende das Icon-Bild das im generated-images Ordner liegt und
+keine eigene Zeichnung, dann ist der Progressionsbalken während dem Einstellen nicht immer sichtbar
+was ich gerne gehabt hätte, befestige ihn entweder am oberen oder unteren Ende."
+
+### 1. Originalbild statt Vektor-Nachzeichnung
+
+**Neu: `public/wizard-car.png`** — `generated-images/icon-concept-B.png` auf 96 px verkleinert
+(doppelte Anzeigegrösse für scharfe Darstellung), sonst **unverändert**: weisses Fahrzeug auf
+orangem Grund. `TripProgress.jsx` rendert jetzt ein `<img>` statt des vektorisierten Pfads aus (bz).
+
+Weil das Quellbild einen deckenden orangen Hintergrund hat, erscheint das Fahrzeug als abgerundete
+Kachel mit leichtem Schlagschatten — freistellen hätte ein weisses Fahrzeug auf beigem Grund
+ergeben, also unsichtbar. Die Kachel ist die ehrliche Darstellung des Bildes, wie es vorliegt.
+
+Pfad über `import.meta.env.BASE_URL`, nicht als absolutes `/wizard-car.png` — die App läuft unter
+`/cape-york-app/`, ein Wurzelpfad zeigte auf GitHub Pages ins Leere.
+
+**Kosten:** 10 KB im Bundle (Precache 1671 → 1677 KiB). Die Nachzeichnung war mit 4.5 KB kleiner
+und umfärbbar; das Bild ist dafür das, was der Entwickler wollte.
+
+### 2. Leiste am unteren Rand fixiert
+
+Vorher lief sie im Inhalt mit und scrollte beim Ausfüllen der Formulare nach oben aus dem Bild —
+also genau dann weg, wenn man wissen will wie weit man ist. Jetzt `position: fixed; bottom: 0`
+mit Trennlinie und Schatten.
+
+- **`--cfgbar: 88px`** in `index.css` bei `--navh`/`--toph`, wo die übrigen Layout-Höhen stehen.
+  Hält Leistenhöhe und den Freiraum in `.cfg-wrap` synchron — sonst verschwindet der letzte
+  Inhalt (inkl. „Next"-Button) unter der Leiste.
+- **`<TripProgress>` ans Ende von `.cfg-wrap` verschoben**, damit DOM-Reihenfolge und visuelle
+  Reihenfolge übereinstimmen (Screenreader lesen sonst den Fortschritt vor dem Formular).
+- Unten gewählt, nicht oben: Die Topbar trägt schon Titel, Känguru und zwei Buttons; die
+  Konfigurator-Ansicht läuft ohne Bottom-Nav (`.app-no-nav`), der Platz ist frei, und dort sitzt
+  die Leiste beim Daumen direkt über dem „Weiter"-Button.
+
+**Aufgeräumt:** doppelte `.cfg-wrap`-Regel zusammengeführt, `:root`-Definition aus `App.css`
+entfernt (gehört zu den Layout-Variablen in `index.css`).
+
+447 Tests grün (24 Dateien), Build grün. Keine API-Kosten.
+
+---
+
+## 2026-09-21 (bz) — Wizard-Fortschritt: 4WD fährt die Strecke entlang (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** Idee für einen Fortschrittsbalken im Konfigurator, auf dem das Auto
+aus `icon-concept-B` proportional zum Planungsfortschritt vorfährt.
+
+**Neu: `src/components/TripProgress.jsx`.** Ersetzt die Punktreihe `cfg-steps-dots` in
+`ConfiguratorTab.jsx:448`. Strasse + drei Wegpunkte + fahrendes Fahrzeug + die bisherige
+Zeile „Step 2 of 3 · Titel".
+
+**Warum überhaupt:** Drei Punkte sagen WIE VIELE Schritte es sind, ein Fahrzeug auf einer Strecke
+sagt WIE WEIT man ist. Und die Metapher ist hier nicht aufgesetzt — die App plant eine Fahrt nach
+Norden, das Icon fährt sie mit.
+
+**Die Antipp-Funktion bleibt.** Die alten Punkte waren Buttons zum Zurückspringen (vorwärts nur mit
+gewähltem Zeitraum). Die Wegpunkte sind es weiterhin — sonst wäre die Umstellung ein Rückschritt
+gewesen, egal wie hübsch sie aussieht.
+
+**Fortschritt ist SCHRITTBASIERT, nicht feldbasiert.** Feiner aufzulösen wäre verlockend, aber der
+Balken liefe dann auch rückwärts, sobald jemand eine Auswahl ändert. Zwei Sprünge bei drei
+Schritten sind ehrlicher als ein Balken, der springt.
+
+**Platz:** Die Konfigurator-Ansicht läuft ohne Bottom-Nav (`.app-no-nav`), 30 px Fahrzeughöhe plus
+Strasse passen. `prefers-reduced-motion` schaltet die Fahrt ab, der Sprung bleibt.
+
+### Fahrzeug: `png-trace.mjs` um Mehrteiligkeit erweitert
+
+Das Auto stammt aus `generated-images/icon-concept-B.png` und ist vektorisiert, nicht als Raster
+eingebunden (886 KB PNG → 4.5 KB Pfad, umfärbbar über `currentColor`, scharf bei jeder Grösse).
+
+Zwei Erweiterungen am Nachzeichner waren nötig:
+
+- **`--invert`**: Das Auto ist WEISS auf Orange; der Tracer suchte bisher dunkle Flächen.
+- **`--multi`**: Der erste Versuch lieferte 278 Randpunkte und nach Vereinfachung 11 Punkte —
+  ein Rechteck. Ursache: **Die Silhouette ist nicht zusammenhängend.** Dachzelt, Dachträger und
+  Karosserie sind im Quellbild durch orange Linien getrennt, der Tracer erwischte nur das Zelt.
+  Jetzt findet eine BFS-Komponentensuche alle Teilflächen ab 0.3 % der Bildfläche und verfolgt
+  jede einzeln: Karosserie 8857 px, Zelt 3671 px, zwei Räder à ~1800 px. Gemeinsam eingepasst,
+  als vier Teilpfade ausgegeben.
+
+**Regel daraus:** Vor dem Nachzeichnen prüfen, ob die Silhouette aus einem Stück besteht. Ist sie
+es nicht, liefert Einzelkontur-Verfolgung stillschweigend Unsinn — die Punktzahl verrät es
+(ein Auto mit 11 Stützpunkten ist keins).
+
+**Aufgeräumt:** `.cfg-steps`, `.cfg-steps-dots` und `.cfg-step-dot` aus `App.css` entfernt;
+`.cfg-steps-label` bleibt, TripProgress benutzt es weiter.
+
+447 Tests grün (24 Dateien), Build grün. Kein API-Aufruf, keine Kosten — das Quellbild lag vor.
+
+---
+
+## 2026-09-21 (by) — Menüplan-Kartenkopf: Tagnummer stand dreimal da (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Im Menüplaner ist jeweils die Tagesanzeige doppelt und dreifach,
+im Kästchen als Zahl und im Titel des jeweiligen Tages. Nimm nur z.B. Day 1 im linken Kästchen,
+dafür kommen im rechten [Teil] nicht nur das Abendessen vor, sondern entweder das Datum oder alle
+Menüs — verwirrt sonst, dass nur das Abendessen da steht."
+
+**Befund, `MenuTab.jsx` Kartenkopf — beide Beobachtungen bestätigt:**
+
+```jsx
+<div className="day-num">
+  <span className="day-num-n">{day.d}</span>   // "1"
+  {day.dt}                                      // "Day 1"
+</div>
+<div className="day-info">
+  <div className="day-title">{day.dt}</div>     // "Day 1" — ein drittes Mal
+  <div className="day-date">{day.ab?.t}</div>   // nur das Abendessen
+</div>
+```
+
+Das Kästchen rendert also wörtlich `1Day 1` (im Test als Ist-Wert festgehalten). Die Unterzeile
+trug die Klasse **`.day-date`**, zeigte aber das Abendessen — der irreführende Klassenname hat die
+Verwirrung mit verursacht und ist mit umbenannt worden.
+
+**Neu — Kartenkopf:**
+
+```
+┌──────┬────────────────────────────────────┐
+│ DAY  │ Monday, June 1           [Today]   │
+│  1   │ Porridge · Wraps · Chili con carne │
+└──────┴────────────────────────────────────┘
+```
+
+- **Kästchen** = `.day-num-lbl` („Day", klein/versal) über `.day-num-n` (Zahl, 18 px). Liest sich
+  als „Day 1", steht **einmal** da. Die grosse Zahl bleibt bewusst erhalten — sie ist der
+  Scan-Anker beim Durchscrollen, deshalb nicht einfach inline „Day 1".
+- **Titelzeile** = Kalenderdatum via neuer `formatDayDate(startDate, dayNum)` (`parseISO` +
+  `addDays` aus `lib/dates.js`, Wochentag/Monat aus `S.config.calendar` — dasselbe Format wie die
+  Home-Karte, nur **ohne Jahr**: im Kartenkopf ist der Platz knapp und der Trip liegt in einem
+  Jahr). Ohne `startDate` Fallback auf `day.dt` → die Zeile bleibt nie leer.
+- **Unterzeile** = neue `mealSummary(day)` über alle drei Slots, Trenner ` · `. Sonderfälle
+  sprechen dieselbe Sprache wie `MealRow`: Restaurant → `🍽 Name`, Reste → `♻️ Leftovers from Day N`.
+  **Pickup-/Dropoff-Slots fallen raus** (Tag 1 / letzter Tag) — das ist eine Logistik-Notiz, keine
+  Mahlzeit, und „🚙 Vehicle pickup" in einer Mahlzeiten-Zeile wäre genau wieder der Verwirr-Effekt,
+  der gemeldet wurde.
+
+**Geändert:** `MenuTab.jsx` (zwei neue Modul-Funktionen, Kopf-JSX, `startDate`-Prop an `DayCard`),
+`App.css` (`.day-num-lbl` neu, `.day-date` → `.day-meals` inkl. Ellipsis-Kappung),
+`strings.js` (`S.menu.dayShort`, `S.menu.mealSep`).
+
+**Neu: `src/components/MenuTab.test.jsx`** — `MenuTab` hatte bisher keinen eigenen Test. 7 Tests,
+TDD (erst rot): Tagnummer genau einmal, Kästchen-Aufbau, Datum in der Titelzeile, Fallback ohne
+`startDate`, alle drei Mahlzeiten in der Unterzeile, Restaurant/Reste, Pickup weggelassen.
+**447 Tests grün** (+7), Build grün.
+
+**Zwei Test-Fallen für future-Claude**, beide beim Rotlauf aufgetreten und im Test kommentiert:
+1. `\b` greift **nicht** zwischen `1` und `M`. Der Kopf-Text läuft als `"Day1Monday, June 1"`
+   durch, also matcht `/Day\s*1\b/` nichts. Korrekt ist `(?!\d)` als Abgrenzung.
+2. Label und Zahl sind getrennte Elemente → `textContent` ist `"Day1"` **ohne** Leerzeichen.
+   Assertions müssen `/^Day\s*1$/` nutzen, kein `toBe('Day 1')`.
+
+**Bewusst NICHT angefasst:** die aufgeklappte Karte (`MealRow` mit Swap/Log/Rezept-Links) und die
+Tag-Sprungleiste — beide funktionieren, der Auftrag galt dem zugeklappten Kopf. Der Generator
+liefert `dt` weiter unverändert; es ist jetzt der Fallback statt der Regelfall.
+
+---
+
+## 2026-09-21 (bx) — Neues App-Icon eingebaut (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Verwende dieses Logo nun in der App."
+
+**Geändert:** `public/icon-192.png` und `public/icon-512.png` ersetzt durch aus
+`generated-images/logo-final.png` skalierte Fassungen (System.Drawing, HighQualityBicubic).
+Damit ist der „CY 2026"-Platzhalter vom Juli abgelöst — offener Punkt 6 in `STATUS.md` erledigt.
+Das Icon zeigt den Cape-York-Umriss als weisse Kontur auf `#C0600C` mit „CY" und „PLANNER";
+die Jahreszahl ist weg, passend zur Umbenennung des Produkts in (bt).
+
+**Keine Code-Änderung nötig.** `index.html:10-11` (Favicon + apple-touch-icon) und
+`vite.config.js:68-69` (Manifest) zeigen bereits auf diese Dateinamen. Geprüft im Build:
+Vite schreibt die Pfade korrekt auf `/cape-york-app/icon-192.png` um — die absoluten `/`-Pfade
+in `index.html` sind also kein Problem auf GitHub Pages.
+
+### Nebenbefund: Precache wächst um 264 KiB
+
+| | alt | neu | Faktor |
+|---|---|---|---|
+| icon-192.png | 5.3 KB | 34.1 KB | 6.5× |
+| icon-512.png | 16.2 KB | 254.0 KB | **15.7×** |
+| Precache gesamt | 1401 KiB | 1665 KiB | +19 % |
+
+**Ursache gemessen, nicht geraten:** Das 512er-Icon enthält **6051 verschiedene Farben**. Das
+Bild zeigt nur Orange und Weiss — die übrigen 6049 sind Rauschen und Antialiasing aus dem
+Bildmodell. Ein flach gerendertes Icon (so entstand der alte Platzhalter) hat eine Handvoll
+Farben und lässt sich als Palette-PNG speichern; ein generiertes Bild nicht.
+
+**Nicht optimiert, bewusst:** Eine Quantisierung auf eine kleine Palette würde die Datei
+vermutlich auf ~20 KB drücken. Das braucht aber einen eigenen PNG-Encoder (Decoder existiert
+bereits in `png-trace.mjs`, Encoder wäre neu). 264 KiB einmaliger Download für eine
+Offline-App sind vertretbar — der Aufwand lohnt erst, wenn die Bundle-Grösse insgesamt zum
+Thema wird. Entscheidung beim Entwickler.
+
+**Testlage beim Einbau:** 441 von 447 Tests grün; die 6 roten liegen alle in `src/components/MenuTab.test.jsx`.
+Diese Datei ist zwischen zwei Läufen neu dazugekommen (noch nicht in Git) und `MenuTab.jsx` wurde
+parallel geändert — die Tests erwarten ein Kalenderdatum im Kartenkopf („Monday, June 1") und ein
+„Day"-Kästchen, die Komponente liefert noch „Day 1". **Mit dem Icon-Tausch hat das nichts zu tun:**
+diese Runde hat ausschliesslich zwei PNG-Dateien ersetzt, alle übrigen 23 Testdateien sind grün.
+Build grün, Icons im `dist/` und im Manifest verifiziert.
+
+---
+
+## 2026-09-21 (bw) — `gen-image.mjs` kann Bilder bearbeiten (`--edit`) + App-Logo-Entwurf (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Kombiniere genau die Umrisse aus dem Concept C mit der Schrift aus
+dem Logo C … erstelle genau 1 Icon mit dem Image Creator."
+
+**Neu in `scripts/gen-image.mjs`: `--edit <datei>`.** Schaltet von `/v1/images/generations`
+(JSON) auf `/v1/images/edits` (multipart) um und gibt ein Vorlagenbild mit. Mehrfach angebbar.
+
+**Warum das nötig war — die eigentliche Erkenntnis:** Bei freier Erzeugung entsteht eine Form bei
+JEDEM Aufruf neu, egal wie genau der Prompt sie beschreibt. Drei Anläufe, den Cape-York-Umriss per
+Prompt zu treffen, ergaben drei verschiedene, frei erfundene Küstenlinien. Erst mit dem
+Edit-Endpunkt bleibt eine vorhandene Form erhalten. **Regel: Soll etwas Bestehendes übernommen
+werden, braucht es `--edit` — ein Prompt allein genügt nie.**
+
+Ergebnis: `generated-images/logo-final.png` — Umriss aus `icon-concept-C.png` unverändert
+übernommen, Sonne entfernt, Hintergrund durchgehend `#C0600C`, Küste als dünne weisse Kontur,
+darüber „CY" und „PLANNER" in kräftigerer Strichstärke. 1216 in / 439 out Token, ~2,3 Cent.
+
+### Vorgeschichte: ein verworfener Vorschlag
+
+Davor hatte ich einen Gegenvorschlag gebaut, den der Entwickler ausdrücklich verworfen hat, und
+der deshalb NICHT eingebaut ist: Das Projekt führt in `src/data/cape-york-geo.js` bereits
+`LAND_POLYGON` mit **4702 echten Küstenpunkten aus OpenStreetMap**. Daraus lässt sich der Umriss
+geographisch exakt statt nur plausibel zeichnen (`build-logo2.mjs` im Scratchpad, Ausgabe unter
+`generated-images/vergleich-geo.html`). Zwei Dinge daraus sind unabhängig davon festhaltenswert:
+
+- **Bounding-Box-Artefakte erkennen:** Die Rohform hatte eine gerade Strecke von 3.6° entlang
+  `lon=141.48` — das war nicht Küste, sondern der Rand der Abfrage von damals. Ein Halbebenen-
+  Schnitt an der Halbinsel-Basis (−16.2°) entfernt das Festland samt Artefakt.
+- **Schriften in headless Chrome:** „Segoe UI Black" wird NICHT gefunden, der Fallback ist eine
+  Serifenschrift. Zuverlässig rendern nur `Arial`, `Helvetica` und `sans-serif` — und zwar
+  **ohne** Anführungszeichen in der `font-family`.
+
+**Lizenzhinweis für später:** Die OSM-Küstendaten stehen unter ODbL. Ein daraus abgeleitetes Logo
+wäre ein „Produced Work" und bräuchte den Hinweis „© OpenStreetMap contributors" — die App trägt
+ihn bereits im About-Bereich. Für `logo-final.png` gilt das nicht, es stammt aus dem Bildmodell.
+
+**Noch nicht eingebaut:** `public/icon-192.png` und `icon-512.png` sind weiterhin die
+„CY 2026"-Platzhalter vom Juli. Der Entwickler hat sich noch nicht festgelegt.
+
+API-Gesamtverbrauch seit Beginn: **~17,4 Cent**.
+
+---
+
+## 2026-09-21 (bv) — Känguru per Bildmodell erzeugt und vektorisiert (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Dann verwende ChatGPT, ich will dass die Silhouette echt aussieht,
+deines sieht aus wie von einem Kindergärtner gezeichnet; es soll so echt sein wie möglich aber nur
+die Umrisse wie bei den anderen Icons."
+
+**Berechtigt.** Die sechs handgezeichneten Entwürfe aus (bu) trafen die Anatomie nicht. Ein Känguru
+hat eine zu eigene Silhouette, um sie aus Grundformen zusammenzusetzen — anders als Brot, Ei oder
+Kalender. Hier ist das Bildmodell das richtige Werkzeug, die Handzeichnung war es nicht.
+
+### Pipeline: erzeugen → vektorisieren → einbauen
+
+1. **`scripts/gen-image.mjs`** erzeugt drei Silhouetten (`gpt-image-2.5-flare`, 1024², medium).
+   Prompt gezielt auf Nachzeichenbarkeit: reines Schwarz auf Weiss, keine Kontur, keine Schatten,
+   keine Verläufe, ganzes Tier mit Rand im Bild.
+2. **`png-trace.mjs`** (Scratchpad, neu) vektorisiert: PNG selbst dekodiert (nur `node:zlib`),
+   Downsampling auf 260 px mit Blockmittelung gegen Kantenrauschen, Moore-Konturverfolgung,
+   Douglas-Peucker, Catmull-Rom-Glättung, Einpassen ins 24er-Raster.
+   **845 Randpunkte → 87 Stützpunkte → 3351 Zeichen Pfad.**
+3. `translate-path.mjs` (aus (bu)) zentriert exakt auf 12/12.
+
+**Warum selbstgebaut:** Auf dem Rechner gibt es weder potrace noch ImageMagick (das `convert.exe`
+in system32 ist das Windows-Dateisystem-Werkzeug), das Python ist ein Store-Platzhalter, und
+Chromes `--dump-dom` lieferte nichts zurück. PNG-Dekodierung braucht aber nur zlib — das ist in
+Node eingebaut.
+
+**Zwei Bugs im eigenen Werkzeug, beide durch Messen gefunden:**
+- Douglas-Peucker lieferte **2 Punkte**. Bei einer GESCHLOSSENEN Kontur fallen Anfang und Ende
+  zusammen, die Bezugsgerade hat Länge null, jeder Punktabstand ist rechnerisch null. Fix:
+  vorher am entferntesten Punkt in zwei offene Hälften teilen (`rdpClosed`).
+- Erster Versuch lief im Browser (Canvas + `--dump-dom`) und gab leeren Output zurück. Nach zwei
+  Fehlversuchen abgebrochen und in Node neu gebaut, statt weiter daran herumzuprobieren.
+
+### Zwei gemessene Abweichungen von der Set-Regel
+
+**Strichstärke 1.0 statt 1.75.** Bei 1.75 laufen Schwanzspitze, Vorderbeine und die Ohrenlücke zu —
+die feinen Stellen der echten Silhouette sind schmaler als der Strich. Durchgetestet bei 0.5 / 0.75
+/ 1.0 / 1.25 / 1.75; sauber steht die Form bei 0.75–1.0.
+
+**Darstellung mit 32 px statt 24 px.** Bei 22 px versagt die Kontur bei JEDER Strichstärke: zu dünn
+verschwindet, zu dick verschmiert. Das ist eine Grössenfrage, keine Zeichenfrage. Durchgetestet bei
+28 / 32 / 36 / 40 px in der echten Leiste: 28 grenzwertig, **32 trägt**, ab 36 dominiert das Zeichen
+die 56 px hohe Topbar. `.topbar-mark` entsprechend angepasst.
+
+Damit ist der Wunsch „nur die Umrisse wie bei den anderen Icons" erfüllt — das Icon ist Kontur,
+nicht Fläche. Die gefüllte Fassung aus (bu) ist ersetzt.
+
+### Kosten
+
+3 Bilder: 405 in / 1317 out Token = **4,15 Cent**. Gesamtverbrauch der API seit Beginn:
+**6,72 Cent** (1,34 % bei 5 $ Aufladung). Alles andere im Icon-System ist weiterhin handgezeichnet
+und kostenfrei.
+
+**Bewusst NICHT gemacht:** Die anderen Icons bleiben handgezeichnet. Für geometrische Formen
+(Kalender, Brot, Tüte) ist das Bildmodell weiterhin das falsche Werkzeug — es kann Strichstärke und
+optisches Gewicht über ein Set hinweg nicht konstant halten. Die Ausnahme gilt für **eine
+organische, anatomisch bestimmte Form**, und nur dafür.
+
+Geometrie: Mitte 12.00/12.00, Rand inkl. Strich eingehalten, Fläche 310 (+20 % ggü. Set-Mittel 259
+— als Markenzeichen vertretbar). 440 Tests grün, Build grün.
+
+---
+
+## 2026-09-21 (bu) — Känguru-Markenzeichen in der Topbar (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Jetzt erstelle das Känguru vom App-Banner als Icon wie zuvor, jetzt
+jedoch in Weiss weil es bereits auf oranger Unterlage liegt."
+
+**Gefunden:** Das „Banner" ist die Topbar, `App.jsx:488` führte dort `🦘 {topbarTitle}` — ein Emoji
+vor dem Titel. Topbar-Hintergrund ist `var(--or)`, Schrift `#fff`.
+
+**Neu: `KangarooIcon`** in `components/icons.jsx`, eingebunden als `<KangarooIcon className="topbar-mark" />`.
+Weiss kommt über `currentColor` aus `.topbar-title` — keine feste Farbe im SVG, das Icon folgt
+dem Kontext. 22 px statt der 18 px Schriftgrösse, weil das Motiv nur ~80 % seines viewBox füllt
+und bei gleicher Zahl kleiner wirkte als die Schrift.
+
+**Bewusste Ausnahme von der Set-Regel:** Dieses Icon ist GEFÜLLT, nicht Kontur. „Kontur bedient,
+Fläche informiert" trennt Bedienelemente von Inhalt — ein Markenzeichen ist weder das eine noch
+das andere. Praktisch entscheidet der Untergrund: eine 1.75er Kontur in Weiss auf Orange wäre bei
+22 px eine 1.6-px-Haarlinie und würde flirren. Eine Fläche steht.
+
+### Sechs Durchgänge, und was sie gelehrt haben
+
+Ein Känguru ist eine deutlich schwierigere Silhouette als Brot oder Ei. Mit headless-Chrome-
+Rendering nach jedem Schritt sichtbar gemacht:
+
+| | las sich als | Ursache |
+|---|---|---|
+| v1 | Vogel | aus Grundformen zusammengesetzt, Ohren schwebten neben dem Kopf |
+| v2 | Nagetier | Haltung zu waagerecht, Schwanz zu dünn |
+| v3 | Nagetier | Schwanz und Bein bildeten ein V |
+| v4 | rennender Hund | ausgestreckter Vorderarm |
+| v5 | spitzköpfige Ratte | lange Ohren verschmolzen mit dem Schädel |
+| v6 | Känguru | kleiner Kopf, kurze Schnauze, zwei GETRENNTE Löffel mit Kerbe |
+
+**Die Lehre:** Die Ohren sind bei kleinen Grössen das einzige eindeutige Kängurumerkmal. Sie
+dürfen weder zu kurz sein (v4) noch mit der Kopfform verschmelzen (v5) — es braucht eine sichtbare
+Kerbe dazwischen. Und: Ein ausgestreckter Vorderarm macht aus jedem Vierbeiner einen rennenden Hund.
+
+### Neues Werkzeug: `translate-path.mjs` (Scratchpad)
+
+Das Känguru sass 1.70/0.75 daneben und die Ohrspitzen verletzten bei y 1.80 den Sicherheitsrand.
+Der Pfad besteht aus ~50 ABSOLUTEN Koordinaten — von Hand verschieben ist genau der Fehler, der
+beim `RecipesIcon` die Buchseite verzogen hat (nur ein von drei Kontrollpunkten eines `C` mitgezogen).
+`translatePath(d, dx, dy)` erledigt das korrekt für gemischt absolute/relative Pfade und prüft sich
+vor jedem Einsatz an einer bekannten Form. **Ab jetzt für jede Icon-Verschiebung benutzen.**
+
+### Nebenbefund behoben — Topbar-Titel brach um
+
+Der Mock mit langem Trip-Namen („Cape York Peninsula Expedition 2026") zeigte: Der Titel bricht auf
+zwei Zeilen und schiebt den Untertitel aus der 56 px hohen Topbar. **Bestand schon vorher**, fiel
+aber erst beim Durchtesten der Umstellung auf. `.topbar-title` ist jetzt ein Flex-Container mit
+`gap: 7px`, der Titeltext liegt in `<span className="topbar-title-text">` mit Auslassungspunkten
+statt Umbruch. Bei fester Leistenhöhe ist Umbruch nie richtig.
+
+**Bewusst NICHT gemacht:** Die Set-Regel wurde nicht umgeschrieben — die Ausnahme steht als solche
+im Kopfkommentar der Komponente, damit niemand sie für den neuen Normalfall hält.
+
+Geometrie: Mitte 12.00/12.00, Rand eingehalten, Fläche 306 (+18 % ggü. Set-Mittel 258 — als
+Markenzeichen darf es etwas kräftiger sein). 440 Tests grün, Build grün.
+
+---
+
+## 2026-09-21 (bt) — Produktname entjahrt: „Cape York 2026" → „Cape York" (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Lösche alle Referenzen aus der App wo 2026 steht, weil es eine
+generelle App ist und das noch Überbleibsel von meinem ersten Versuch sind, der spezifisch auf
+2026 zugeschnitten war." Auf Nachfrage präzisiert: **„vorerst mal die kosmetischen Probleme, die
+man in der App sieht"** — Icons und alles Interne bleiben vorerst liegen.
+
+**Inventur vorab:** 64 Treffer für `2026` im Repo. Die zerfallen in drei Gruppen, und nur die
+erste ist ein Überbleibsel — deshalb wurde vor dem Umbau sortiert statt global ersetzt.
+
+**Geändert (Produktname, 6 Stellen — alle user-sichtbar):**
+
+| Datei | Stelle | Wo der User es sieht |
+|---|---|---|
+| `index.html` | `<title>` | Browser-Tab |
+| `vite.config.js` | Manifest `name` | PWA-Installations-Dialog, App-Liste |
+| `src/strings.js` | `S.app.title` | Topbar auf Home |
+| `src/strings.js` | `S.about.appName` | About-Seite |
+| `PRIVACY.md` | Überschrift + 2× Fließtext | Policy-Seite (aus About verlinkt) |
+| `scripts/build-privacy.mjs` | `<title>` der generierten Seite | Browser-Tab der Policy |
+
+`short_name` im Manifest und `apple-mobile-web-app-title` in der `index.html` lauteten **schon
+vorher** „Cape York" — der Homescreen-Name war also nie betroffen, nur die Langform.
+`public/privacy.html` ist gitignored und wird vom `prebuild`-Hook erzeugt; nach dem Build 0 Treffer.
+
+**Ebenfalls geändert — `S.premium.activatePlaceholder`:** `CY26-XXXX-XXXX-XXXX` → `XXXX-XXXX-XXXX-XXXX`.
+Das Präfix war **doppelt falsch**: `generate-license.mjs` würfelt Payloads aus `ALPHABET` (base32),
+echte Schlüssel fangen also gar nicht mit `CY26` an. Die Prüflogik liest das Präfix nicht
+(`verifyLicense` rechnet über `payload = n.slice(0, 12)`), der Platzhalter ist reiner Anzeigetext →
+risikofrei. Aktuell ohnehin unerreichbar, weil `MONETIZATION_ENABLED = false` den 👤-Einstieg
+ausblendet — geändert, damit es stimmt, wenn der Einstieg zurückkommt.
+
+**Bewusst NICHT geändert — echte Datumsangaben, kein Branding:**
+- `PRIVACY.md` **„Effective: 2026-05-03"** — rechtlich gemeintes Inkrafttretensdatum.
+- `GEO_GENERATED_AT` / `ROUTE_POIS_GENERATED_AT` — OSM-Snapshot-Stand, Teil der ODbL-Attribution.
+- Datenstand-Notizen (`packs.js` „Größenordnung 2025/2026", `gen-image.mjs` Preis-Stand).
+- Test-Fixtures mit `startDate: '2026-06-01'` — beliebige Testdaten, kein Produktbezug.
+- `CHANGELOG.md` / `STATUS.md` — Historie, wird laut CLAUDE.md fortgeschrieben, nicht umgeschrieben.
+
+**Bewusst NICHT geändert — auf Ansage des Entwicklers vertagt:**
+- **`SECRET = 'cape-york-2026-rev1-7Q4mZ8Lk'`** (`premium.js:32` + `generate-license.mjs:13`).
+  Interner HMAC-Salt, erscheint nie in der UI. Ändern macht jeden ausgestellten Lizenzschlüssel
+  ungültig, und **beide Dateien müssten synchron** geändert werden — sonst verifiziert die App
+  keinen erzeugten Schlüssel mehr. Ungefährlich nachholbar, solange kein Schlüssel raus ist.
+- **`public/icon-192.png` / `icon-512.png` tragen die CY26-Wortmarke** — damit steht „CY26" auf dem
+  Homescreen, der sichtbarsten Stelle überhaupt. Bilddateien; der Entwickler überarbeitet alle
+  Icons in einer parallelen Session.
+- `premium.js:5` — Kommentar illustriert weiterhin das Format `CY26-XXXX-XXXX-CKSM`. Interne
+  Doku, divergiert jetzt leicht vom Platzhalter. Bewusst stehen gelassen (Ansage: Internes bleibt).
+- `CLAUDE.md` / `PRODUCT.md` heißen im Titel weiter „Cape York 2026" — Entwickler-Docs, keine App.
+
+**Verifikation:** Grep auf `Cape York 2026` über `index.html`, `vite.config.js`, `src/`, `scripts/`
+und `PRIVACY.md` → **0 Treffer**; `2026` und `CY26` in `strings.js` → **0 Treffer**. Gebaute
+Artefakte geprüft: `dist/index.html` `<title>Cape York</title>`, `dist/manifest.webmanifest`
+`"name":"Cape York"`, `public/privacy.html` 0 Treffer. **440 Tests grün**, Build grün.
+Kein Test hing am Titel (vorab gegrept), deshalb keine Test-Anpassung nötig.
+
+---
+
+## 2026-09-20 (bs) — Zwei-Ebenen-Icon-System: gefüllte Lebensmittel-Icons für Rezepte (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Wenn du aufhörst dich an den bisherigen Icons zu orientieren, sondern
+die Menus unabhängig und von vorne denkst … wenn ein möglichst konsequenter Stil durch die App
+getragen werden soll?" Danach: „Setze das so um, aber behalte provisorisch die alte Version noch,
+dass man es rückgängig machen könnte."
+
+### Die Regel: Kontur bedient, Fläche informiert
+
+| | Ebene 1 — Bedienung | Ebene 2 — Inhalt |
+|---|---|---|
+| Datei | `components/icons.jsx` | `components/food-icons.jsx` |
+| Wo | Navigation, Chrome | Rezepte, Swap, Kalender |
+| Form | Kontur, 1.75 Strich | **gefüllte Silhouette** |
+| Farbe | einfarbig Orange | **Farbe nach Lebensmittelfamilie** |
+| Raster | 24 × 24, Mitte 12/12 | identisch |
+
+Konsequenz heisst nicht, dass alles gleich aussieht — sie heisst, dass **eine Regel alles
+entscheidet**. Zwei Ebenen mit klarer Zuordnung sind konsequenter als eine Ebene mit 45 Ausnahmen.
+
+**Warum gefüllt:** Bei kleinen Grössen löst das Auge Farbmasse vor Silhouette vor Detail auf. Eine
+Kontur wirft Kanal 1 und 3 weg — in der Navigation richtig (vier Icons, gross, beschriftet), bei
+97 Gerichten Selbstverkrüppelung. Hart wird es beim Kalendermarker: der rendert mit **9 px**, eine
+1.75er Kontur wäre dort 0.66 px stark und physikalisch nicht darstellbar. Eine Fläche überlebt.
+
+**Warum neun Familien:** Die Unterscheidung trägt hier die Farbe. Die Palette der App ist warm —
+Rotbraun, Ocker, Sand, Orange liegen dicht beieinander; mehr als neun Töne sind darin nicht sicher
+zu trennen. Jede zehnte Familie hätte die übrigen unschärfer gemacht. Farbherkunft ist dieselbe
+Logik, die `cape-york-pois.js` längst fährt (acht Kartenkategorien mit je einer Farbe).
+
+### Neu
+
+- **`src/data/food-families.js`** — neun Familien (meat, fish, egg, veg, grain, soup, spice,
+  fruit, other) mit Label und Farbe, dazu die Zuordnung aller **45 in `recipes.js` vorkommenden
+  Emoji** und `familyOf()` / `familyColor()`.
+- **`src/data/food-families.test.js`** — 8 Tests. Der wichtigste prüft, dass **jedes** Emoji aus
+  `recipes.js` zugeordnet ist; sonst fiele ein neues Rezept stumm auf Emoji zurück und die App
+  sähe wieder gemischt aus, ohne dass jemand die Ursache fände.
+- **`src/components/food-icons.jsx`** — die neun Silhouetten, `<FamilyIcon>` und `<FoodIcon>`.
+
+### Geändert
+
+`RecipesTab.jsx:142`, `SwapSheet.jsx:57`, `TripCalendar.jsx:83-84` rendern `<FoodIcon>` statt des
+rohen Emoji. `App.css` — Layout-Regeln für die SVGs in den drei Kacheln (nur `display:block`,
+**keine Farbe**: die Familienfarbe ist die Information und darf nicht per CSS überschreibbar sein).
+
+### Umkehrbar, wie gefordert
+
+`FOOD_ICONS_ENABLED` in `food-icons.jsx:32` auf `false` → die App rendert wieder exakt die
+bisherigen Emoji. **`recipes.js` wurde nicht angefasst** — die 97 Zeilen führen weiter ihre Emoji,
+die Familie wird per Lookup ermittelt. Es gibt also nichts zurückzumigrieren. Beide Flag-Stellungen
+durchgetestet: je 440 Tests grün, Build grün.
+
+Der Fallback hat einen zweiten Zweck: Das Icon-Feld im Rezept-Editor (`RecipesTab.jsx:78`) ist ein
+Emoji-Freitextfeld. Unbekannte Eingaben laufen automatisch in die Emoji-Darstellung statt zu brechen.
+
+### Werkzeug: endlich Augen
+
+Headless Chrome (`--headless=new --screenshot`) rendert `file://`-Seiten zuverlässig — damit lassen
+sich Icons **ansehen** statt blind zu zeichnen. Das hat sofort zwei Fehler gefunden, die Geometrie-
+Prüfung allein nie gezeigt hätte: `meat` war als Kapsel-mit-Loch gezeichnet und las sich als
+**Tablette** (ersetzt durch eine Keule), und Chili wie Apfel sassen 1.9 bzw. 1.0 Einheiten zu hoch.
+**Für `localhost` funktioniert es nicht** — dieselbe Blockade wie bei der Chrome-Extension. Statt
+die laufende App zu fotografieren, baut `render-list.mjs` im Scratchpad die Rezeptliste mit echten
+Namen, echter Kachel (46 px, `--tok-bg`) und echtem Hintergrund als statische Seite nach.
+
+### Bekannte Schwäche — Zuordnung erbt die Unschärfe der Emoji
+
+Die Familie wird aus dem Emoji abgeleitet, das der Rezeptautor gewählt hat. Wo dieses Emoji
+ungenau war, ist es die Familie auch. Im Stichprobenbild aufgefallen:
+
+- *„Sardines on toast"* trägt 🥫 (Konserve) → landet in **other/grau**, müsste **fish** sein
+- *„Muesli with UHT milk and nuts"* trägt 🌱 → landet in **veg/Blatt**, ist aber kein Gemüse
+
+Eine saubere Lösung wäre eine Übersteuerungs-Tabelle `RECIPE_FAMILY_OVERRIDE` (Rezept-ID →
+Familie) in `food-families.js` — hält `recipes.js` weiter unangetastet. **Bewusst noch nicht
+gebaut:** Dafür müssten alle 97 Rezepte einzeln durchgesehen werden, und welches Gericht in welche
+Familie gehört, ist eine Geschmacksentscheidung des Entwicklers, keine technische.
+
+### Bewusst NICHT gemacht
+
+- *Navigation unangetastet.* Die vier Kontur-Icons sind Ebene 1 und bleiben.
+- *Keine Migration von `recipes.js`.* Siehe oben — Voraussetzung für die Umkehrbarkeit.
+- *Editor bleibt Freitextfeld.* Eine Auswahl aus den neun Familien wäre einheitlicher, nimmt dem
+  Nutzer aber Freiheit. Entscheidung offen.
+- *POI-Emoji (`cape-york-pois.js`) und Versorgungspunkte (`regions.js`) unberührt.* Eigene Blöcke.
+
+440 Tests grün (23 Dateien, +8 neu), Production-Build grün.
+
+---
+
+## 2026-09-20 (br) — Einkaufslisten hinter EINEM Nav-Eintrag gebündelt (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ich will die Menüleiste für die Einkaufslisten vereinfachen, ich glaube
+wenn sich da bei 4 Zwischenstops die neuen Icons unten einfach aufhäufen wird das zu unübersichtlich,
+ich will ein Einkaufslisten-Icon und dahinter verbergen sich dann die unterschiedlichen Zwischenstopps."
+
+**Das Problem war real und schlimmer als vermutet:** `REGION.supplyPoints` führt **sechs** Stops
+(Cairns, Cooktown, Coen, Archer River, Weipa, Bamaga). Bei voller Aktivierung standen **9 Buttons**
+in der Bottom-Nav (3 Seiten + 6 Stops) — auf 360 px sind das ~40 px pro Button, unter dem
+44-px-Touch-Target aus CLAUDE.md. Die Nav ist ein `grid-auto-columns: 1fr`, also skaliert sie
+stumm mit, statt zu brechen.
+
+**Neu: `src/components/ShopStopSheet.jsx`** — Popup, das über der Bottom-Nav aufklappt (Slide-up
+`shopnav-rise`, 0.18 s). Listet die aktivierten Stops in **Reise-Reihenfolge** mit Icon + Name,
+aktiver Stop hervorgehoben, gesperrte Stops mit 🔒. Schliesst per Tap auf den Hintergrund, per
+Auswahl oder per `Esc`; Fokus springt beim Öffnen auf den aktiven (sonst ersten) Eintrag.
+
+**Der Ein-Stop-Fall entfällt bewusst:** hat der Trip keine Zwischenstopps, gibt es nur Cairns —
+dann springt der Tap direkt auf dessen Liste. Ein Popup mit genau einem Eintrag wäre reiner
+Zusatz-Tap. Entscheidung liegt in `handleShopNav()` (App.jsx), nicht in der Komponente.
+
+**Nav-Reihenfolge auf Entwickler-Wunsch geändert:** **Menu · Recipes · Shopping · Stock** — „macht
+logisch mehr Sinn wenn man sich von links nach rechts begibt" (planen → kochen → kaufen → Bestand).
+Vorher stand Stock vor den Stops.
+
+**Geändert — `src/App.jsx`:** neue `buildNavItems(tabs)` leitet die Leiste aus den Tabs ab;
+`buildActiveTripTabs()` bleibt unverändert die Quelle der Wahrheit für *erreichbare Ziele*.
+Das ist die zentrale Design-Entscheidung: **Stop-IDs bleiben `activeTab`-Werte.** Dadurch laufen
+`activeSupplyPoint`, der Scroll-Positions-Speicher pro Stop, das `shopping`-Tutorial und der
+Auto-Fallback auf `menu` (wenn ein Stop wegkonfiguriert wird) unverändert weiter — kein einziger
+dieser Pfade musste angefasst werden. Dazu `shopNavOpen`-State, `handleShopNav`/`handlePickStop`/
+`closeShopNav` und ein `useEffect`, das das Popup bei jedem View-Wechsel schliesst.
+
+**`src/App.css`:** `.shopnav-*`-Block. **z-index 300** — über der Nav (200), aber unter DaySheet/
+Share-Sheets (500) und dem Tutorial-Layer (1050), sonst würde das Popup Tutorial-Spotlights
+verdecken. Zeilen 48 px hoch (≥ 44 px, CLAUDE.md).
+
+**`src/strings.js`:** `S.app.tabs.shopping` + `S.shopping.stopPicker.{title,sub}`.
+
+**Neu: `src/components/ShopStopSheet.test.jsx`** — 5 Tests, TDD (erst rot, dann grün): Nav-Reihenfolge,
+Popup listet genau die gefilterten Stops, Auswahl wechselt Tab + schliesst, Ein-Stop-Direktsprung,
+Backdrop schliesst ohne Tab-Wechsel. **432 Tests grün** (+5), Build grün.
+
+**`ShoppingTab.jsx` wurde nicht angefasst** — die Seite nennt ihren Stop schon selbst im
+Fortschritts-Balken, ein zweiter Stop-Titel wäre doppelt.
+
+**Bewusst NICHT gemacht:**
+- *Kein Fortschritt (`12/48`) in den Popup-Zeilen.* Angeboten, vom Entwickler nicht bestellt.
+  Die Daten lägen in `App.jsx` (`result.shopping`) bereit — nachrüstbar ohne Umbau.
+- *Icons unverändert.* Ausdrückliche Ansage („ohne die Icons zu verändern, da sich damit in einem
+  anderen Chat beschäftigt wird"). `SHOP_NAV_ICON = '🛒'` ist dasselbe Emoji, das Cairns in
+  `regions.js` führt, und ein bewusster Platzhalter fürs SVG-Set aus (bq).
+- *Kein Tutorial-Schritt für das Popup.* Die `shopping`-Tour erklärt den Inhalt der Liste; ein
+  Nav-Schritt gehörte in eine eigene Iteration.
+
+**Dabei aufgefallen (nicht gefixt, siehe STATUS.md Lücke 14):** `S.shopping.progress` kennt nur
+`cairns` und `bamaga`. Auf Cooktown/Coen/Archer/Weipa rendert `.progress-label` deshalb leer.
+Vorbestehend, unabhängig von dieser Änderung — dem Entwickler gemeldet statt still miterledigt.
+
+**Werkzeug-Notiz:** Browser-Verifikation scheiterte wieder wie in (bq) beschrieben — Chrome
+verweigert für `localhost` den `localStorage`-Zugriff („Access is denied for this document"),
+danach nur noch „Frame is showing error page". Zusätzlich beobachtet: der Vite-Dev-Server bindet
+**nur IPv6-localhost**, `http://127.0.0.1:<port>` liefert gar keine Verbindung (curl exit 7),
+`http://localhost:<port>` dagegen HTTP 200. Wer es nochmal versucht: `npm run dev -- --host`.
+Nach zwei Fehlversuchen abgebrochen — die 5 neuen Tests decken das Verhalten ab.
+
+---
+
+## 2026-09-20 (bq) — SVG-Icon-Set gestartet: Recipes-Tab bekommt Linien-Icon (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ich will die App schlicht im modernen Stil halten … die Icons auf den
+Übersichtsseiten sollen nur Umrisse und linienmässig dargestellt werden." Danach: „Wie wäre es mit
+dem Rezeptbuch, dass die Kochmütze auf dem Cover hat" und schliesslich „Variante D in ganz orange".
+
+**Vorgeschichte / Richtungswechsel:** Ursprünglich war geplant, Icons per OpenAI-Bildmodell zu
+erzeugen (siehe (bp)). Für **Linien-Icons ist das der falsche Weg** und der Vorschlag wurde vor der
+ersten Generierung verworfen: Ein Icon-Set lebt davon, dass alle Icons dieselbe Strichstärke und
+dasselbe optische Gewicht haben — über 4 Tabs, 8 POI-Kategorien und 97 Rezepte hinweg kann ein
+Bildmodell das nicht konstant halten. Dazu: PNG wäre ~800 KB statt ~400 Byte pro Icon, bei 24 px
+unscharf, nicht umfärbbar und würde das Offline-Bundle sprengen. **Entschieden: SVG von Hand.**
+
+**Neu: `src/components/icons.jsx`** mit `RecipesIcon` (aufgeschlagenes Buch + Kochmütze darüber).
+Die Datei führt das **verbindliche Stil-Regelwerk** im Kopfkommentar — jedes weitere Icon muss sich
+daran halten, sonst zerfällt das Set:
+
+| Regel | Wert |
+|---|---|
+| Raster | 24 × 24 viewBox |
+| Sicherheitsrand | 2 px (Motiv in 2..22) |
+| Strichstärke | 1.75 |
+| Enden / Ecken | round |
+| Füllung | keine, reine Kontur |
+| Farbe | `stroke="currentColor"`, nie fest im SVG |
+| Zentrierung | Motiv auf 12/12 |
+
+**Warum die Mütze ÜBER dem Buch und nicht auf dem Cover:** Auf dem Cover überlappen sich beide
+Formen und verschmelzen bei kleinen Grössen zu einem Fleck. Übereinander gestapelt bleiben sie
+als zwei Dinge unterscheidbar (geprüft: 2.4 Einheiten Abstand zwischen Mützen-Unterkante y 8.9
+und Buch-Oberkante y 11.3).
+
+**Geändert:** `src/App.jsx` — Recipes-Tab führt statt `icon: '👨‍🍳'` jetzt `icon: <RecipesIcon />`
+(`tab.icon` wird als `{tab.icon}` gerendert, React verträgt String und Element gleichermassen).
+`src/App.css` — neue Regel `.nav-icon svg { … color: var(--or) }`. **`color`, nicht `stroke`**,
+weil die Icons `currentColor` führen. Die Farb-Deklaration macht das Icon auf Wunsch des
+Entwicklers *immer* orange; sie zu löschen genügt, damit es wieder dem Tab-Zustand folgt
+(grau im Ruhezustand, orange wenn aktiv).
+
+**Werkzeug-Erkenntnis für future-Claude:** Icon-Geometrie lässt sich ohne Browser prüfen — ein
+kleiner Pfad-Parser liefert Bounding-Box, Zentrierung und Überlappung. Das fand zwei echte Fehler,
+die beim Draufschauen durchgerutscht wären (Mütze 1.6 Einheiten aus der Mitte bei zwei Entwürfen,
+Variante D vertikal 1.3 zu tief). **Einschränkung:** Bögen werden nur über Endpunkte gemessen, die
+echten Formen sind breiter — ersetzt kein Hinsehen. Browser-Screenshot per Chrome-Extension
+scheiterte reproduzierbar (Fehlerseite bei `file://` UND bei `localhost`, obwohl `curl` HTTP 200
+lieferte) — nicht weiter verfolgt.
+
+**Bewusst NICHT gemacht:**
+- *Die übrigen Tab-Icons (Menu 📅, Inventory 📦, Map 🗺️) bleiben vorerst Emoji.* Der Entwickler hat
+  ein Icon beauftragt, nicht das Set. Folge: Die Tab-Leiste mischt gerade ein Linien-Icon mit drei
+  Emoji und wirkt uneinheitlich — bewusst in Kauf genommen, Entwurf für die drei liegt bereit.
+- *Die 97 Rezept-Emoji und die 8 POI-Emoji bleiben unangetastet.* Eigener Arbeitsblock.
+- *Emoji in `strings.js`* (z.B. `myRecipesSection: '👨‍🍳 My recipes'`) sind Text, kein Icon — getrennt zu behandeln.
+- *Keine neuen Tests.* Das Icon ist eine reine Darstellungs-Komponente ohne Logik; der bestehende
+  App-Fuzzer rendert die Tab-Leiste bereits durch.
+
+427 Tests grün (unverändert), Production-Build grün, Dev-Server verifiziert.
+
+**Nachtrag — Menu-Icon (`MenuIcon`):** Kalenderrahmen plus dreizeilige Punkt-Liste im Blatt
+(Kombination aus zwei vorgelegten Entwürfen, vom Entwickler so bestellt). Folgt derselben
+Grammatik wie `RecipesIcon`: Grundobjekt + Marker. `App.jsx:51` führt statt `icon: '📅'` jetzt
+`icon: <MenuIcon />`. Geometrie geprüft: Mitte 12.00/11.95, Liste vollständig im Rahmen und
+unter der Kopfzeile.
+
+**Gemessene Schwäche, bewusst so ausgeliefert:** Bei 2.7 Einheiten Zeilenabstand und 1.75
+Strichstärke bleibt in der Tab-Leiste (24 px) nur **0.95 px Lücke** zwischen den Listenzeilen,
+bei 20 px sogar nur 0.79 px. Die drei Zeilen verschmelzen dort optisch zu einem Block. Sauber
+wird es erst ab ~48 px. Abhilfe wäre zwei statt drei Zeilen (Lücke dann ~1.75 px bei 24 px)
+oder ein dünnerer Strich nur für die Listenzeilen — beides offen, Entscheidung beim Entwickler.
+**Regel fürs Icon-Set:** Binnenstrukturen brauchen mindestens ~1.5 px Lücke bei der echten
+Anzeigegrösse, sonst ist die Form bei 24 px wertlos.
+
+**Nachtrag — Tab-Icons von 24 auf 32 px (App.css):** Der Entwickler schlug vor, die Bottom-Nav
+komplett zu verstecken und über einen Button unten rechts aufzuklappen, damit die Icons grösser
+und besser tippbar werden. **Nachgemessen und verworfen:** Antippen war nie das Problem — bei
+360 px Breite und vier Einträgen ist jeder Button **90 × 64 px**, also das Doppelte der
+44-px-Vorgabe. Das Problem war ausschliesslich die *Erkennbarkeit*, und vom 64 px hohen Button
+lagen **40 px ungenutzt brach** (6 + 24 + 3 + 13 + 6 = 52 px).
+
+Gewählt wurde deshalb der kleinste Eingriff: Icon 24 → 32 px, `.nav-btn`-Padding 6 → 4 px,
+`.nav-label` bekommt feste `line-height: 1.2` (vorher browserabhängig). Neues Budget
+4 + 32 + 3 + 12 + 4 = 55 px bei 64 px, also 9 px Reserve. Emoji-`font-size` 22 → 28 px, damit
+🛒/📦 neben den 32-px-SVGs nicht kleiner wirken (die Glyphe füllt den Schriftkegel nicht aus).
+
+**Warum nicht die versteckte Leiste:** Sie hätte 64 px gebracht — 8 % der Höhe, auf Inhalten die
+ohnehin scrollen — und dafür jede Navigation von einem auf zwei Taps verteuert, den Aktiv-Zustand
+unsichtbar gemacht und verborgen, welche Bereiche es überhaupt gibt. Die Kernschleife der App ist
+das Springen zwischen Menüplan, Rezept und Einkaufsliste beim Kochen; genau diese Bewegung wäre
+verdoppelt worden. Als Alternative wurde Auto-Hide beim Scrollen angeboten (Leiste weicht beim
+Runterscrollen, kehrt beim Hochscrollen zurück) — vom Entwickler nicht gewählt, bleibt verfügbar.
+
+**Seiteneffekt:** Die Zeilenlücke im `MenuIcon` steigt von 0.95 auf **1.27 px**. Besser, aber
+weiterhin unter der oben gesetzten 1.5-px-Regel — der Vorschlag „zwei statt drei Listenzeilen"
+bleibt offen.
+
+**Nachtrag — Shopping-Icon (`ShoppingIcon`):** Einkaufstüte mit Henkel, vom Entwickler aus vier
+Entwürfen gewählt (Wagen / Korb / Tüte / Korb-mit-Häkchen). `App.jsx:77` — `SHOP_NAV_ICON` führt
+statt `'🛒'` jetzt `<ShoppingIcon />`. Vorteil gegenüber dem Wagen: keine freistehenden Räder, die
+bei kleinen Grössen als lose Punkte zerfallen. Beim Einbau um 0.35 Einheiten nach oben gerückt,
+damit die Mitte exakt auf 12/12 liegt. Fläche 224 gegenüber 252 im Mittel (−11 %) — sichtbar
+leichter als Menu und Recipes, aber innerhalb der Toleranz.
+
+**Werkzeug-Korrektur, wichtig für future-Claude:** Der Bounds-Prüfer maß Bögen (`a`/`A`) nur über
+ihre ENDPUNKTE. Das erzeugte erst Fehlalarme bei den Korb-Entwürfen (ein Henkelbogen von (8.6,6.9)
+nach (15.4,6.9) wölbt sich real bis y≈3.5, gemeldet wurde 6.9 → schien 1.4 Einheiten zu tief
+zentriert). Jetzt echte Endpunkt→Mittelpunkt-Umrechnung nach SVG-Spec F.6.5 mit 48 Stützpunkten,
+gegen bekannte Geometrie getestet (Halbkreise beide Richtungen, Viertelkreis, Vollkreis, reine
+Linien — 5/5 auf 0.01 genau). **Ein Prüfer der falsch Alarm schlägt ist schlimmer als keiner.**
+
+**Dadurch aufgedeckt — Fehler im bereits ausgelieferten `RecipesIcon`:** Beim Einbau war
+„Mitte exakt 12.00/12.00" gemeldet worden. Falsch. Tatsächlich 12.00/**11.42**, und die Kochmütze
+ragte bis y 1.64, also 0.36 Einheiten in den 2-px-Sicherheitsrand. Die Mütze ist ausserdem
+erheblich grösser als endpunktbasiert gemessen: x **7.33–17.07** statt der gemeldeten 9.3–15.1.
+Korrigiert durch Verschiebung um +0.58 in y. **Dabei zweiter Fehler:** Im ersten Buchpfad ist `C`
+absolut — beim Verschieben wurde nur einer von drei Kontrollpunkten mitgezogen, was die linke
+Buchseite verzog. Ebenfalls behoben. Lehre: Bei absoluten Kurvenkommandos müssen ALLE
+Kontrollpunkte mitwandern, nicht nur der erste.
+
+**Neu: `verify-all-icons.mjs`** (Scratchpad) löst die drei Einzelprüfer ab — liest alle
+`export function *Icon` aus `icons.jsx`, prüft Raster, Sicherheitsrand, Zentrierung (Toleranz jetzt
+0.15 statt 0.5) und das optische Gewicht zueinander. Die Einzelprüfer waren zudem fehleranfällig:
+`verify-recipes-icon.mjs` schnitt die Pfadliste per Index und mass ab dem zweiten Icon Unsinn.
+
+Stand danach: 3 Icons, 0 Probleme. Mittlere Fläche 252, Abweichungen −11 % bis +6 %.
+In der Bottom-Nav bleibt nur noch **Inventory 📦** als Emoji.
+
+**Nachtrag — Inventory-Icon (`InventoryIcon`), Bottom-Nav vollständig auf SVG:** Vorratskiste
+frontal, vom Entwickler aus fünf Entwürfen gewählt (Kühlbox / Füllstand / Stapel / offene Kiste /
+Kiste frontal). `App.jsx:55` — statt `icon: '📦'` jetzt `icon: <InventoryIcon />`.
+
+**Anlass war eine Rückfrage des Entwicklers** („ist die Kiste wirklich das intuitivste Icon?").
+Die Prüfung ergab zwei unabhängige Einwände gegen den ursprünglichen Entwurf:
+1. *Semantisch:* Der 3D-Würfel ist das Standard-Icon für Paket/Sendung/Archiv. Der Tab heisst im
+   UI aber **„Stock"** (`strings.js:19` — `inventory` ist nur die interne ID) und zeigt den
+   Restbestand im Auto: Abgehaktes wandert rein, Gekochtes zieht wieder ab. Es geht um *Schwinden*,
+   davon transportiert ein Paket nichts.
+2. *Visuell:* Der Würfel war **isometrisch** — als einziges Icon im Set mit Perspektive, neben
+   drei flachen, frontalen Formen. Das fällt auf, ohne benennbar zu sein.
+
+Gewählt wurde die flache Frontalansicht derselben Kisten-Idee: minimale Abweichung vom Ist-Zustand,
+Perspektiv-Bruch weg. **Merksatz fürs Set: keine Perspektive, alle Icons frontal und flach.**
+
+**Der Prüfer als Entwurfswerkzeug:** Von fünf Kandidaten sassen vier zu tief (bis 1.75 Einheiten),
+zwei waren rund 20 % kleiner als das übrige Set. Der Generator meldet die nötige Korrektur jetzt
+direkt als `dx`/`dy`, statt nur „daneben" zu sagen — eine Runde Nachziehen, dann 5/5 sauber.
+
+Stand der Bottom-Nav: **4 von 4 Icons als SVG.** Mittlere Fläche 246, Abweichungen −9 % bis +8 %.
+Einziges verbliebenes Emoji in `buildActiveTripTabs` ist 🗺️ für Map — rendert nie, solange
+`MAP_ENABLED = false`; bei Reaktivierung braucht es ein Icon aus `icons.jsx`.
+
+**Nebenbefund:** Zwischen zwei Sessions sind `src/components/ShopStopSheet.jsx` + Test
+dazugekommen (Testzahl 427 → 432). Keine Kollision mit dem Icon-Set. Ausserdem korrigiert:
+`STATUS.md` listete Map als offenes Icon, Map ist aber wegen `MAP_ENABLED = false` gar nicht in
+der Nav — offen sind stattdessen 📅 (erledigt), 🛒 (`SHOP_NAV_ICON`) und 📦.
+
+---
+
+## 2026-09-16 (bp) — Bild-Generator-Skript (OpenAI Images API) (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ich würde gerne über Claude Code auf API Keys von der
+Bilder-Generierungs-Software von ChatGPT zugreifen, sodass dies für mich Bilder generieren kann."
+
+**Neu:** `scripts/gen-image.mjs` — CLI-Wrapper um die OpenAI Images API (`gpt-image-1`).
+Prompt rein, PNG/WebP/JPEG nach `generated-images/` raus. Optionen: `--out --size --quality
+--n --transparent --format --model`. Dazu npm-Script `img:gen` und `generated-images/` in
+`.gitignore`.
+
+**Keine neue Dependency.** Der Key kommt über `process.loadEnvFile()` (Node-Builtin seit 20.12)
+aus `.env` — kein `dotenv` nötig; HTTP läuft über das eingebaute `fetch`.
+
+**Key-Handhabung:** `.env` stand bereits in `.gitignore`. Der Key wird **nie** committet, nie in
+`package.json` geschrieben und nie im Chat gezeigt — wichtig, weil das Repo public ist.
+Klarstellung fürs Protokoll: Das ChatGPT-Abo enthält **keinen** API-Zugang, dafür braucht es ein
+separates Prepaid-Guthaben auf platform.openai.com.
+
+**Windows-Stolperstein (gelöst, für future-Claude):** `process.exit()` aus einem `.catch()` heraus,
+während die `fetch`-Verbindung noch offen ist, lässt libuv unter Windows mit
+`Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c` abstürzen — die
+Meldung kommt *nach* der eigentlichen Ausgabe und sieht aus wie ein Crash. Fix: Fehler werfen
+(`class UserError`), im Top-Level-Handler drucken und nur `process.exitCode` setzen. Gilt für alle
+künftigen Skripte hier, die `fetch` benutzen.
+
+**Bewusst NICHT gemacht:**
+- *Keine Anbindung an die App.* Das Skript ist Dev-Werkzeug, wird von nichts in `src/` importiert
+  und ist nicht Teil des Builds. Die App bleibt backendlos und offline-fähig.
+- *Keine Unit-Tests.* Reiner API-Wrapper ohne eigene Domänenlogik; ein Test würde nur `fetch`
+  mocken und die eigene Implementierung nachbauen. Stattdessen alle Fehlerpfade einmal real
+  durchgespielt (fehlender Prompt, ungültige `--size`, `--transparent` + jpeg, fehlender Key,
+  Fake-Key gegen die echte API → sauberer 401, `.env`-Ladepfad).
+- *Keine Icon-Generierung damit.* Empfehlung steht: für `icon-192/512.png` ist ein
+  handgezeichnetes SVG pixelgenauer als ein KI-Bild — Entscheidung offen beim Entwickler.
+
+427 Tests grün (unverändert).
+
+**Nachtrag 2026-09-20:** `.env` als ausgefüllte Vorlage im Projekt-Root angelegt (Kommentar-Header
+mit Format-Regeln + Platzhalter `sk-DEIN-KEY-HIER-EINFUEGEN`) — der Entwickler fand die Datei nicht,
+weil die Test-`.env` nach der Verifikation gelöscht worden war. Dazu ein Guard in `loadApiKey()`:
+steht noch der Platzhalter drin, kommt eine Klartext-Meldung statt eines verwirrenden 401 von der API.
+Bestätigt: Nodes `process.loadEnvFile()` verträgt `#`-Kommentare in der Datei. `.env` bleibt via
+`.gitignore:4` aus `git status` draußen (geprüft).
+
+**Nachtrag 2026-09-20 (b), Default-Modell gewechselt:** Der erste echte Lauf mit gültigem Key zeigte,
+dass der Account Modelle sieht, die es beim Schreiben des Skripts noch nicht gab: `gpt-image-2`,
+`gpt-image-2.5-flare`, `gpt-image-2.5-sunburst`. Die neuen sind **besser UND günstiger** als
+`gpt-image-1` ($30 statt $40 pro 1M Output-Token). Default ist jetzt `gpt-image-2.5-flare`
+(schnell, zum Iterieren); `--model gpt-image-2.5-sunburst` ist die präzisere Variante für finale
+Fassungen (laut OpenAI stärker bei Formen/Logos/Text). **Lehre für future-Claude:** Modell-IDs im
+Skript nicht als gegeben annehmen — `GET /v1/models` listet, was der Account wirklich kann.
+
+Erster Icon-Durchlauf: 4 Konzepte à ~196 Output-Token = **ca. 2,4 Cent gesamt**. Skalierungstest
+auf 48 px via `System.Drawing` (PowerShell-Methode aus `STATUS.md`, keine neue Dependency) —
+dünne Linien (Dreibein, Feuerholz) zerfallen, kompakte Silhouetten halten. Kriterium für alle
+weiteren Icon-Prompts: dicke geschlossene Formen, keine Linien dünner als ~5 % der Bildbreite.
+
+---
+
+## 2026-09-08 (bo) — Special-Dinner-Banner aus der Trip-Erstellung entfernt (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Lösche den Special-Menu-Banner aus der Trip-Erstellung."
+
+**Entfernt:** die „✨ Your plan will include N special evening dinners"-Preview auf Wizard-Schritt 3
+(`cfg-special-hint`-Block inkl. `estimateSpecialCount`-Aufruf + Import in `ConfiguratorTab.jsx`,
+`S.config.specialHint` in `strings.js`, `.cfg-special-hint`-CSS). **Die Specials-Funktion selbst
+bleibt unverändert** — der Generator plant weiterhin Special-Dinner ein, `estimateSpecialCount`
+bleibt exportiert (Generator-intern + Tests); nur die Ankündigung im Wizard ist weg.
+
+Grep sauber, **427 Tests grün** (unverändert), Build grün.
+
+---
+
+## 2026-09-08 (bn) — Datums-Wizard: Stop-Mechanik wird immer erklärt + Kalender-Tipp antippbar (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Im Reise-Datum-Planer erscheint das erste Tutorial (Daten anklicken),
+nach Next folgt aber kein zweites, das die Mechanik der Zwischenstops erklärt. Und nach der
+Datums-Wahl gibt es nur den kleinen gelben Banner — der reicht nicht und wird oft übersehen."
+
+**Ursache 1:** Die Stop-/Restaurant-Tutorial-Schritte zeigen INS offene DaySheet ((bi)-Design).
+Wer beim „Tap any trip day"-Schritt **Next** drückt statt selbst zu tippen, öffnete das Sheet nie
+→ die Schritte entfielen mangels Ziel (seit (bm) sofort, davor nach unsichtbaren 2-s-Wartezeiten —
+gezeigt wurden sie so oder so nie). **Fix: neues Schritt-Flag `nextOpens`** (tours.js/PageTour):
+Next führt auf solchen Schritten den Tap selbst aus (`el.click()` → läuft durch den vorhandenen
+Capture-Listener und schaltet normal weiter) — DaySheet öffnet, Stop- und Restaurant-Erklärung
+erscheinen IMMER. Gesetzt auf `config-dates.day` und `menu.day` (gleiche Konstellation:
+Swap-/Log-Erklärung lebt im aufgeklappten Tag). Fallback bleibt weich: existiert das Folge-Ziel
+trotz Klick nicht, greift die (bm)-Logik.
+
+**Ursache 2:** Der Kalender-Tipp (`cfg-calendar-tip`) war ein passiver Text unter dem Kalender.
+**Fix:** ab 3 Trip-Tagen jetzt ein antippbarer Button mit CTA-Zeile („Try it — open Day X ▸"),
+der das DaySheet des Beispiel-Tags direkt öffnet (Trip-Mitte, gleiche Formel wie der
+Tutorial-Anker; Tag 1/letzter Tag haben keine Stop-Optionen). Auffälligere Optik (Orange-Border,
+44-px-Touch-Target). Strings: neues `S.config.calendarTipCta`.
+
+**Tests:** +2 (TDD, beide RED belegt): Wizard-Integrationstest „Next auf dem Tag-Schritt öffnet
+das DaySheet und erklärt den Stop"; neues `ConfiguratorTab.test.jsx` „Tipp ist ein Button und
+öffnet das DaySheet". Der (bm)-Test „Next überspringt unerreichbare wait-Schritte" auf den
+Swap-Schritt umgestellt (der day-Schritt überspringt jetzt bewusst nicht mehr, er öffnet).
+**427 Tests grün** (+2), Build grün.
+
+---
+
+## 2026-09-08 (bm) — Spotlight-Tutorial: Next verlässlich + Nummerierung korrekt (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Die Next-Buttons tun manchmal was und manchmal nicht; die
+Nummerierung ist nicht korrekt und variiert von Fensterlein zu Fensterlein."
+
+**Root Cause 1 (Next):** `advance` landete nach einem Next-Klick auf `wait`-Schritten, deren Ziel
+nur durch die gerade ABGELEHNTE Aktion entstehen kann (Menu: „Tag aufklappen" → Next → Swap-Button
+existiert nur im aufgeklappten Tag; Wizard: Stop/Restaurant nur im offenen DaySheet). Das Tutorial
+renderte dann pro wait-Schritt 2 s lang unsichtbar NICHTS (WAIT_MS-Gnadenfrist), bei Ketten bis 4 s
+— für den Nutzer „Next tut nichts". **Fix:** `advance(viaNext)` — nur der Next-Button übergibt
+true und überspringt damit zusätzlich alle Folge-Schritte, deren Ziel aktuell nicht im DOM steht:
+sofort der nächste sichtbare Schritt oder sauberes Ende (inkl. markTourSeen). Der Aktions-Tap
+behält die Gnadenfrist (dort entsteht das Ziel gerade erst durch Reacts Re-Render).
+
+**Root Cause 2 (Nummerierung):** „X of Y" nutzte rohen Array-Index + Array-Länge — übersprungene
+Schritte (skipIf im Edit-Modus, fehlende Ziele wie Stock-Empty vs. -Row) zählten mit: erstes
+Fensterlein zeigte z.B. „2 of 3", Totale enthielten nie erscheinende Schritte. **Fix:** beim
+Tour-Start wird der Schritt-Plan EINMAL eingefroren (`planRef`: kein skipIf, Ziel vorhanden ODER
+entsteht per wait — Auswertung im Start-Effect, weil der Tab-Inhalt im selben Commit rendert);
+Anzeige-cur/-total und die „Got it"-Erkennung (`last`) rechnen über den Plan → Zählung beginnt
+immer bei 1, Total = real geplante Schritte.
+
+**TDD:** 3 neue Tests, RED mit exakt den Symptomen belegt („3 of 3" statt „1 of 1", „2 of 3" statt
+„1 of 2", Tour hing unsichtbar ohne markTourSeen). **425 Tests grün** (+3, alle 22 bestehenden
+PageTour-Tests inkl. App-Integration unverändert), Build grün.
+
+---
+
+## 2026-09-08 (bl) — Rezepte stop-agnostisch: alle Bamaga-/Cairns-Referenzen entfernt (Branch `fresh-start`)
+
+**Anlass (der Entwickler, beim Live-Test):** „Da gibt es das Rezept ‚Chicken stir fry with rice
+(Bamaga)' — checke alle Rezepte und lösche alle Referenzen auf Bamaga oder andere Stops, sodass das
+für die komplette Customization passt." Trips sind voll konfigurierbar (Bamaga optional, Stops
+wählbar, Stufe-2-Geo-Erweiterung geplant) — Rezept-Texte dürfen keinen konkreten Versorgungspunkt
+voraussetzen. **Cairns bewusst mitentfernt** („oder andere Stops" — Cairns ist der Start-Stop).
+
+**14 Fundstellen in `recipes.js` bereinigt** (TDD: Vorwärts-Schutz-Test zuerst, RED mit exakt diesen
+14 belegt): a7-Name „(Bamaga)" weg; 5 Zutaten-Annotationen „(fresh from Bamaga)"/„(Bamaga, thawed)"
+entfernt (a7×2, a8, a9, a11); 8 Tips neutral umformuliert (f7, f12, a7, f14, f16, a36, a38, a39 —
+z.B. „after a long Bamaga shopping day" → „after a resupply day", „ribeye in Cairns" → „ribeye").
+Marken-Nennungen (Coles, Yalla, v2food) bleiben — das sind keine Stops.
+
+**Verifiziert unschädlich für die Logik:** Fleisch-/Shelf-Life-Erkennung hängt nur an den
+Fleisch-Wörtern (FRESH_MEAT_RX etc.), nicht an Annotationen; `baseIngredientName` strippt
+Klammer-Qualifier ohnehin → Einkaufslisten-Keys unverändert. Golden Master neu eingefroren —
+**Diff exakt gleich groß wie nach (bk)** (126 Zeilen), d.h. die Bereinigung änderte nur den
+Anzeigenamen an Tag 10, keinerlei Plan-/Mengen-Verschiebung.
+
+**Neuer Dauer-Test:** „kein Rezept referenziert einen konkreten Stop" (Name/Zutaten/Schritte/Tipp
+gegen Bamaga/Cairns/Cooktown/Coen/Archer River/Weipa/Seisia) — neue Rezepte mit Stop-Namen fallen
+sofort auf. **422 Tests grün** (+1), Build grün.
+
+---
+
+## 2026-09-08 (bk) — Kochaufwand „high" abwärtskompatibel: weiche Präferenz statt Tier-Ausschluss (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Menüs sollen immer abwärtskompatibel sein — 1-Platten-Menüs auch bei
+2 Burnern, einfache Menüs auch bei hohem Kochaufwand (im Plan oder per Swap wählbar)."
+
+**Befund (verifiziert, 2 von 3 Punkten waren schon erfüllt):** (1) **Burner war bereits
+abwärtskompatibel** — `fitsBurnerSetup` prüft `braucht ≤ vorhanden`, 1-Burner-Rezepte erscheinen bei
+2/3 Burnern in Plan UND Swap; keine Änderung nötig. (2) **Swap filtert gar nicht nach Aufwand** —
+easy-Rezepte waren dort immer wählbar; keine Änderung nötig. (3) **Echtes Problem:** seit (bf)
+reduzierte `preferByEffort` in `chooseWaste` den Kandidaten-Pool bei `high` HART aufs aufwändigste
+Tier → 16d/2P-Dinner = 1 easy von 15.
+
+**Umsetzung (`generator.js`, nur `high`-Verhalten):** `preferByEffort`/`effortPrefRank` ersetzt
+durch `effortScoreBonus` — der Aufwand fließt als **weicher Bonus in den Waste-Score** (medium +2,
+hard +4) statt easy auszuschließen. **Empirischer Zwischenbefund:** Bonus allein (Gewichte 0.1–2
+gesweept) änderte NICHTS (weiter 1 easy) — zu den 30 medium-Dinnern existiert praktisch immer eins,
+das dieselbe offene Grundzutat teilt wie das beste easy; easy gewinnt nie über den Waste-Score.
+Deshalb zweiter Baustein: **Kadenz** — bei jedem 3. Gericht pro Mahlzeiten-Kategorie
+(`effortMealCount`, gezählt in `noteCooked`) dreht sich der Bonus um (easy +4 … hard 0). Auch der
+umgedrehte Slot bleibt WEICH: ein aufwändiges Rezept mit Perish-Vorteil (+5) darf ihn übernehmen.
+**Effekt (16d/2P/omnivore/high):** Dinner 1 easy/12 medium/2 hard → **3 easy/10 medium/2 hard**;
+Lunch zeigt wieder einfache Cracker-Gerichte. `low`/`medium`-Pläne bit-identisch (Bonus dort 0).
+
+**Golden Master bewusst neu eingefroren** (`vitest -u`, Diff geprüft: Struktur intakt, Tage 1–2+16
+identisch, Bamaga-Tag 9 unverändert). **+1 Test** (high: Dinner-Mix ≥3 easy UND ≥8 aufwändig — RED
+mit „expected 1 ≥ 3" belegt, dann GREEN). **421 Tests grün** (Sicherheits-Sweep ~1090 Configs +
+Shuffle-Sweep unverändert grün), Build grün.
+
+**Harness-Falle für future-Claude:** PowerShell 5.1 `Get-Content -Raw`/`Set-Content` ohne
+`-Encoding` zerstört UTF-8-Umlaute in BOM-losen Dateien (ANSI-Fehlinterpretation) — `generator.js`
+musste aus Git wiederhergestellt werden. Für Datei-Roundtrips Bash-Tool oder explizites Encoding
+nutzen.
+
+---
+
 ## 2026-08-04 (bj) — Alte Identitäts-History von GitHub entfernt (Branch `redesign` gelöscht)
 
 **Anlass (der Entwickler):** „Es soll nur noch die aktuellste Version verwendet werden." Damit ist

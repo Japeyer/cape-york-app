@@ -64,9 +64,19 @@ export default function PageTour({ page }) {
   }, [])
 
   // Nächster sinnvoller Schritt; ist keiner mehr übrig → Tutorial beenden.
-  const advance = useCallback(() => {
+  //
+  // `viaNext` (nur der Next-Button übergibt true): der Nutzer LEHNT die Aktion ab —
+  // Folge-Schritte, deren Ziel jetzt nicht im DOM steht, können nur durch genau diese
+  // Aktion entstehen (wait-Schritte in Sheets etc.) und werden sofort mit übersprungen.
+  // Sonst hinge das Tutorial pro wait-Schritt 2 s unsichtbar in der Gnadenfrist —
+  // „Next tut nichts". Beim Aktions-Tap (ohne viaNext) bleibt die Gnadenfrist, weil das
+  // Ziel dort gerade erst entsteht.
+  const advance = useCallback((viaNext) => {
     let n = i + 1
-    while (n < steps.length && steps[n].skipIf?.()) n++
+    while (
+      n < steps.length &&
+      (steps[n].skipIf?.() || (viaNext === true && !document.querySelector(steps[n].sel)))
+    ) n++
     if (n >= steps.length) {
       // Nie etwas gezeigt (leere Seite)? Dann NICHT als gesehen abhaken.
       if (shownRef.current) markTourSeen(pageRef.current)
@@ -79,11 +89,19 @@ export default function PageTour({ page }) {
   // Startschritt kann schon beim Betreten hinfällig sein (skipIf) — erst nach dem Mount
   // prüfbar, weil der Tab-Inhalt im selben Commit gerendert wird.
   const started = useRef(false)
+  // Nummerierungs-Plan: die beim Start wirklich anstehenden Schritte (kein skipIf, Ziel
+  // vorhanden ODER entsteht erst per `wait`). EINMAL eingefroren — die Anzeige „X of Y"
+  // zählt damit ab 1 und zählt keine Schritte mit, die in diesem Zustand nie erscheinen
+  // (z.B. Kalender im Edit-Modus, Empty-State bei gefülltem Stock).
+  const planRef = useRef(null)
   useEffect(() => {
     if (started.current || !active) return
     started.current = true
+    planRef.current = steps
+      .map((_, idx) => idx)
+      .filter(idx => !steps[idx].skipIf?.() && (steps[idx].wait || document.querySelector(steps[idx].sel)))
     if (step.skipIf?.()) advance()
-  }, [active, step, advance])
+  }, [active, step, advance, steps])
 
   // Position des Ziels messen. Läuft bei jeder DOM-Änderung (der Nutzer klappt Karten auf,
   // Sheets gehen auf/zu) und beim Scrollen. setState nur bei echter Änderung → kein Loop.
@@ -179,7 +197,13 @@ export default function PageTour({ page }) {
   const popStyle = below
     ? { top: Math.max(GAP, Math.min(holeBottom + GAP, vh - GAP - POP_SPACE)) }
     : { bottom: Math.max(GAP, Math.min(vh - hole.top + GAP, vh - GAP - POP_SPACE)) }
-  const last = i === steps.length - 1
+  // Anzeige-Nummerierung aus dem eingefrorenen Plan: cur = wievielter geplanter Schritt
+  // (dynamisch übersprungene lassen Werte aus, statt falsche Totale zu zeigen), last =
+  // ab dem letzten geplanten Schritt heißt der Button „Got it".
+  const plan = planRef.current
+  const cur = plan ? Math.max(1, plan.filter(p => p <= i).length) : i + 1
+  const total = plan ? Math.max(cur, plan.length) : steps.length
+  const last = plan ? plan.length === 0 || i >= plan[plan.length - 1] : i === steps.length - 1
 
   shownRef.current = true
 
@@ -199,7 +223,7 @@ export default function PageTour({ page }) {
 
       <div className="tour-pop" style={popStyle} role="note" aria-live="polite">
         <div className="tour-pop-hd">
-          <span className="tour-pop-count">{S.tours.ui.stepOf({ cur: i + 1, total: steps.length })}</span>
+          <span className="tour-pop-count">{S.tours.ui.stepOf({ cur, total })}</span>
           <button className="tour-skip" onClick={finish}>{S.tours.ui.skip}</button>
         </div>
         <div className="tour-pop-title">{txt.title}</div>
@@ -207,7 +231,22 @@ export default function PageTour({ page }) {
         <div className="tour-pop-foot">
           {/* Schritte ohne Aktion (reine Erklärung) haben keinen `cta`. */}
           <span className="tour-pop-cta">{txt.cta ? `👉 ${txt.cta}` : ''}</span>
-          <button className="tour-next" onClick={advance}>
+          <button
+            className="tour-next"
+            onClick={() => {
+              // `nextOpens`: die Folge-Schritte leben in UI, die erst der Tap auf das
+              // aktuelle Ziel öffnet (DaySheet, Tages-Karte). Statt sie beim Ablehnen zu
+              // überspringen, führt Next den Tap selbst aus — der Klick läuft durch den
+              // Capture-Listener und schaltet ganz normal weiter; die Mechanik wird also
+              // auch Next-Drückern gezeigt.
+              if (step.nextOpens) {
+                const el = document.querySelector(step.sel)
+                const nextSel = steps[i + 1]?.sel
+                if (el && nextSel && !document.querySelector(nextSel)) { el.click(); return }
+              }
+              advance(true)
+            }}
+          >
             {last ? S.tours.ui.done : S.tours.ui.next}
           </button>
         </div>

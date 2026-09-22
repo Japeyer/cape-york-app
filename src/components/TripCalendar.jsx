@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { S } from '../strings.js'
 import { parseISO, addDays, diffDays, sameMonth, weekdayMo, isoFromDate, todayISO } from '../lib/dates.js'
+import { FoodIcon } from './food-icons.jsx'
 
 // Liefert alle Monate, die der Trip berührt.
 function monthsInRange(start, end) {
@@ -79,8 +80,8 @@ function MonthGrid({
               onClick={() => onTapDate(date, inTrip, dayNum)}
             >
               <span className="cal-day-num">{date.getDate()}</span>
-              {marker && <span className="cal-day-icon">{marker.icon}</span>}
-              {hasRest && !marker && <span className="cal-day-icon">🍽</span>}
+              {marker && <span className="cal-day-icon"><FoodIcon icon={marker.icon} size={10} /></span>}
+              {hasRest && !marker && <span className="cal-day-icon"><FoodIcon icon="🍽" size={10} /></span>}
             </button>
           )
         })}

@@ -19,7 +19,30 @@
   flex-shrink: 0;
 }
 .topbar-titles { flex: 1; min-width: 0; }
-.topbar-title { color: #fff; font-size: 18px; font-weight: 700; }
+.topbar-title {
+  color: #fff; font-size: 18px; font-weight: 700;
+  display: flex; align-items: center; gap: 7px;
+  min-width: 0;
+}
+/* Känguru-Markenzeichen (components/icons.jsx). Nimmt seine Farbe über
+   `currentColor` aus `.topbar-title` — auf der orangen Topbar also Weiss.
+
+   32px, nicht 24px wie die Nav-Icons: Die Silhouette ist nachgezeichnet und
+   hat feine Stellen (Schwanzspitze, Vorderbeine, Ohrenlücke). Bei 22px war
+   die Kontur bei JEDER Strichstärke unlesbar — zu dünn verschwindet, zu dick
+   verschmiert. 28px ist grenzwertig, ab 36px dominiert das Zeichen die Leiste.
+   Die Topbar ist 56px hoch, 32px passen bequem hinein.
+   Negativer Rand links, weil das Motiv im viewBox etwas eingerückt sitzt. */
+.topbar-mark { width: 32px; height: 32px; flex-shrink: 0; margin-left: -2px; }
+/* Lange Trip-Namen ("Cape York Peninsula Expedition 2026") brachen auf zwei Zeilen
+   und schoben den Untertitel aus der 56px hohen Topbar. Eine Zeile mit Auslassung
+   statt Umbruch — die Topbar hat eine feste Höhe, Umbruch ist dort nie richtig. */
+.topbar-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 .topbar-sub   { color: rgba(255,255,255,.75); font-size: 12px; margin-top: 1px; }
 .topbar-back {
   width: 40px; height: 40px;
@@ -195,6 +218,18 @@
   margin-top: 8px;
   line-height: 1.4;
 }
+/* Optionale Trip-Beschreibung (Wizard-Schritt 1) — auf zwei Zeilen gekappt, damit eine
+   lange Notiz die Karte nicht aufbläht. */
+.home-trip-desc {
+  font-size: 13px;
+  color: var(--tx2);
+  margin-top: 6px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .home-trip-cta {
   font-size: 13px;
   font-weight: 700;
@@ -334,14 +369,95 @@
   cursor: pointer;
   color: var(--tx3);
   font-family: inherit;
-  padding: 6px 0;
+  /* 4px statt 6px: schafft Platz für 32px-Icons. Höhenbudget bei --navh 64px:
+     4 + 32 (Icon) + 3 (gap) + 12 (Label) + 4 = 55px. 9px Reserve. */
+  padding: 4px 0;
   transition: color .15s;
   -webkit-user-select: none;
   user-select: none;
 }
 .nav-btn.active { color: var(--or); }
-.nav-icon  { font-size: 22px; line-height: 1; pointer-events: none; }
-.nav-label { font-size: 10px; font-weight: 500; pointer-events: none; }
+/* Icon-Grösse in der Tab-Leiste: 32px statt vormals 24px (SVG) bzw. 22px (Emoji).
+   Der Button ist 90 × 64px — antippen war nie das Problem, erkennen schon: vom
+   64px hohen Button lagen 40px ungenutzt brach. 32px ist das Maximum, das mit
+   Label und Padding sicher ins Höhenbudget passt (Rechnung bei .nav-btn).
+   Emoji brauchen eine grössere font-size als die SVG-Kantenlänge, weil die Glyphe
+   den Schriftkegel nicht ausfüllt — 28px wirkt neben 32px-SVGs gleich gross. */
+.nav-icon  { font-size: 28px; line-height: 1; pointer-events: none; }
+/* SVG-Icons in der Tab-Leiste (components/icons.jsx). Die Icons führen
+   stroke="currentColor", deshalb steuert `color` — nicht `stroke` — ihre Farbe.
+   `color: var(--or)` macht sie IMMER orange, unabhängig vom Tab-Zustand.
+   Diese eine Deklaration entfernen → das Icon folgt wieder .nav-btn/.nav-btn.active,
+   also grau im Ruhezustand und orange wenn aktiv. */
+.nav-icon svg { display: block; width: 32px; height: 32px; color: var(--or); }
+.nav-label { font-size: 10px; font-weight: 500; line-height: 1.2; pointer-events: none; }
+
+/* ── Stop-Auswahl der Einkaufslisten (ShopStopSheet) ──
+   Klappt über der Bottom-Nav auf, statt jeden Versorgungspunkt als eigenen Tab in die
+   Leiste zu hängen (bei 6 Stops wären das 9 Buttons auf 360 px). z-index 300: über der
+   Nav (200), aber unter DaySheet/Share-Sheets (500) und dem Tutorial-Layer (1050). */
+.shopnav-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;
+  animation: sheet-fade .15s ease-out;
+}
+.shopnav-pop {
+  width: 100%;
+  /* Sitzt direkt auf der Nav-Leiste auf — das Popup „gehört" sichtbar zum Nav-Button. */
+  margin-bottom: var(--navh);
+  background: var(--wh);
+  border-top: 1px solid var(--bdr);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -6px 24px rgba(60, 45, 30, .22);
+  padding: 12px 10px 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  animation: shopnav-rise .18s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes shopnav-rise {
+  from { transform: translateY(14px); opacity: 0 }
+  to   { transform: translateY(0);    opacity: 1 }
+}
+.shopnav-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+  padding: 0 8px;
+}
+.shopnav-sub {
+  font-size: 12px;
+  color: var(--tx2);
+  padding: 2px 8px 8px;
+}
+.shopnav-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;          /* Touch-Target ≥ 44 px (CLAUDE.md) */
+  padding: 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--tx);
+  text-align: left;
+  cursor: pointer;
+}
+.shopnav-row:active { background: var(--chip-bg); }
+.shopnav-row.active {
+  background: var(--chip-bg);
+  color: var(--or);
+  font-weight: 700;
+}
+.shopnav-row-icon  { font-size: 20px; line-height: 1; width: 24px; text-align: center; }
+.shopnav-row-label { flex: 1; }
+.shopnav-row-lock  { font-size: 13px; opacity: .7; }
 
 /* ── Phase header ── */
 .phase-hdr {
@@ -462,6 +578,16 @@
   line-height: 1.3;
   flex-shrink: 0;
 }
+/* Kästchen liest sich als "Day 1": Label klein obendrüber, Zahl gross darunter.
+   Die grosse Zahl bleibt der Scan-Anker beim Durchscrollen. */
+.day-num-lbl {
+  display: block;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .75;
+  line-height: 1.1;
+}
 .day-num-n { font-size: 18px; font-weight: 800; display: block; }
 .day-info  { flex: 1; min-width: 0; }
 .day-title {
@@ -472,7 +598,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.day-date  { font-size: 12px; color: var(--tx2); margin-top: 1px; }
+/* Mahlzeiten-Zusammenfassung des zugeklappten Kopfs (hiess .day-date, zeigte aber
+   nur das Abendessen — der Name hat die Verwirrung mitverursacht). */
+.day-meals {
+  font-size: 12px; color: var(--tx2); margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .day-arrow {
   color: var(--tx3);
   font-size: 20px;
@@ -1593,7 +1726,11 @@
 .warning-banner > div + div { margin-top: 4px; }
 
 /* ── Configurator ── */
-.cfg-wrap { padding: 12px; }
+.cfg-wrap {
+  padding: 12px;
+  /* unten Platz fuer die fixierte Fortschrittsleiste (siehe --cfgbar) */
+  padding-bottom: calc(var(--cfgbar) + 12px);
+}
 .cfg-card {
   background: var(--wh);
   border-radius: var(--radius);
@@ -1626,27 +1763,122 @@
 .cfg-label { font-size: 14px; font-weight: 600; color: var(--tx); }
 .cfg-hint  { font-size: 12px; color: var(--tx3); }
 
+/* ── Wizard-Schritt 1: Trip-Name + Beschreibung ── */
+.cfg-optional {
+  margin-left: 6px;
+  font-size: 11px; font-weight: 600;
+  color: var(--tx3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.cfg-input {
+  width: 100%;
+  min-height: 48px;            /* Touch-Target ≥ 44 px (CLAUDE.md) */
+  padding: 12px 14px;
+  border: 1px solid var(--bdr);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--tx);
+  font-family: inherit;
+  font-size: 16px;             /* < 16 px lässt iOS/Android beim Fokus hineinzoomen */
+  line-height: 1.4;
+}
+.cfg-input::placeholder { color: var(--tx3); }
+.cfg-input:focus {
+  outline: none;
+  border-color: var(--or);
+  box-shadow: 0 0 0 3px rgba(192, 96, 12, .12);
+}
+.cfg-textarea { resize: vertical; }
+
 /* ── Wizard: Schritt-Fortschritt, Intro-Karte, Navigation ── */
 .cfg-step-panel { display: contents; }  /* Panel-Wrapper nur fürs :first-child der cfg-rows */
 .cfg-step-panel > .cfg-row:first-child { border-top: none; padding-top: 0; margin-top: 0; }
 
-.cfg-steps {
+/* ── Wizard-Fortschritt: 4WD auf der Strecke (components/TripProgress.jsx) ──
+   Ersetzt die frühere Punktreihe `.cfg-steps-dots`. Die Wegpunkte sind weiterhin
+   Buttons zum Zurückspringen — das war der Grund, die Punkte nicht einfach zu löschen.
+
+   Platzbedarf: 30px Auto + 10px Abstand + Strasse + Label. Die Konfigurator-Ansicht
+   läuft ohne Bottom-Nav (`.app-no-nav`), der Platz ist also vorhanden. */
+/* AM UNTEREN RAND FIXIERT, nicht mitscrollend: Beim Durchgehen der Schritt-Formulare
+   war die Leiste sonst nach oben aus dem Bild gescrollt — genau dann, wenn man wissen
+   will wie weit man ist. Die Konfigurator-Ansicht läuft ohne Bottom-Nav (`.app-no-nav`),
+   der Platz unten ist also frei.
+   `--cfgbar` (definiert in index.css bei --navh/--toph) hält Leistenhöhe und den
+   Freiraum in `.cfg-wrap` synchron. */
+.cfg-progress {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 150;
   display: flex; flex-direction: column; align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  height: var(--cfgbar);
+  /* oben 48px: das freigestellte Fahrzeug ist 41px hoch und sitzt ÜBER der Strasse —
+     weniger Abstand und das Dachzelt wird oben abgeschnitten.
+     seitlich 36px: das Fahrzeug ist 52px breit, bei left:0% ragt die Hälfte (26px)
+     nach links hinaus — 36px lassen 10px echten Rand. */
+  padding: 48px 36px 10px;
+  background: var(--bg);
+  border-top: 1px solid var(--bdr);
+  box-shadow: 0 -2px 10px rgba(0,0,0,.06);
 }
-.cfg-steps-dots { display: flex; gap: 10px; align-items: center; }
-.cfg-step-dot {
-  width: 26px; height: 8px;
+/* Letzter Inhalt darf nicht unter der Leiste verschwinden. */
+.cfg-road {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: var(--bdr);
   border-radius: 999px;
-  border: none;
+}
+.cfg-road-done {
+  position: absolute; inset: 0 auto 0 0;
+  background: var(--or);
+  border-radius: 999px;
+  transition: width .45s cubic-bezier(.34, .01, .3, 1);
+}
+.cfg-waypoint {
+  position: absolute; top: 50%;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
   background: var(--bdr);
   padding: 0; cursor: pointer;
-  transition: background .15s, width .15s;
+  transition: background .2s, transform .2s;
 }
-.cfg-step-dot.done   { background: #E3B48C; }
-.cfg-step-dot.active { background: var(--or); width: 34px; }
-.cfg-step-dot:disabled { cursor: default; }
+.cfg-waypoint.done   { background: var(--or); }
+.cfg-waypoint.active { background: var(--or); transform: scale(1.25); }
+.cfg-waypoint:disabled { cursor: default; }
+
+/* Das Fahrzeug sitzt auf der Strasse und wird über `left` bewegt. `translateX(-50%)`
+   zentriert es über dem Wegpunkt, `bottom: 100%` stellt es auf die Fahrbahn.
+
+   Es ist ein BILD, keine Vektorzeichnung: `public/wizard-car.png` entstand aus
+   `icon-concept-B.png` über die OpenAI-Images-API im Edit-Modus (Farben invertiert —
+   weiss wird orange, orange wird transparent), danach auf den Bildinhalt zugeschnitten
+   und auf 104×82 skaliert (doppelte Anzeigegrösse).
+
+   Wer das Bild austauscht: Seitenverhältnis 1.28 und doppelte Anzeigegrösse beibehalten,
+   sonst wird es unscharf oder verzerrt. `margin-bottom: -1px` setzt die Räder auf die
+   Fahrbahn statt sie darüber schweben zu lassen. */
+.cfg-car {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: -1px;
+  transform: translateX(-50%);
+  width: 52px; height: 41px;
+  pointer-events: none;
+  transition: left .45s cubic-bezier(.34, .01, .3, 1);
+}
+.cfg-car img { display: block; width: 100%; height: 100%; }
+
+/* Rückwärtsfahren beim Zurückspringen ergibt sich von selbst — `left` animiert in
+   beide Richtungen. Wer Bewegung reduziert haben will, bekommt den Sprung ohne Fahrt. */
+@media (prefers-reduced-motion: reduce) {
+  .cfg-car, .cfg-road-done, .cfg-waypoint { transition: none; }
+}
+/* Wird weiterhin von TripProgress.jsx benutzt — die Zeile „Step 2 of 3 · Titel". */
 .cfg-steps-label {
   font-size: 12px; font-weight: 600;
   color: var(--tx2);
@@ -1835,28 +2067,30 @@
 }
 .reset-swaps-btn:active { background: rgba(192, 96, 12, .08); }
 
-/* ── Calendar Tip — First-Time-Hinweis unter dem Kalender ── */
+/* ── Calendar Tip — Hinweis unter dem Kalender. Als Button (Trip ≥ 3 Tage) antippbar:
+   öffnet das DaySheet eines Beispiel-Tags, damit die Stop-/Restaurant-Mechanik nicht
+   nur beschrieben, sondern gezeigt wird — der rein passive Tipp wurde oft übersehen. */
 .cfg-calendar-tip {
+  display: block;
+  width: 100%;
   margin: -4px 0 12px;
-  padding: 10px 12px;
+  padding: 12px;
   background: #FEF0E6;
-  border: 1px solid #F3D2B0;
+  border: 1.5px solid var(--or);
   border-radius: 10px;
+  font-family: inherit;
   font-size: 13px;
   line-height: 1.45;
+  text-align: left;
   color: var(--tx);
 }
-
-/* Configurator-Preview: kündigt dem User die Special-Dinner an, bevor er "Generate" tippt. */
-.cfg-special-hint {
-  margin: -4px 0 12px;
-  padding: 9px 12px;
-  background: #FFF7ED;
-  border: 1px solid #E8B98A;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--tx);
+button.cfg-calendar-tip { cursor: pointer; min-height: 44px; }
+button.cfg-calendar-tip:active { background: #FBE3CF; }
+.cfg-calendar-tip-cta {
+  display: block;
+  margin-top: 4px;
+  font-weight: 700;
+  color: var(--or);
 }
 
 /* DaySheet Section-Hint unter Resupply-Heading — gibt Tap-Verhalten an */
@@ -2035,6 +2269,13 @@
   bottom: 1px; right: 2px;
   font-size: 9px;
 }
+/* Lebensmittel-Icons (components/food-icons.jsx) sind gefüllte SVGs und tragen ihre
+   Farbe selbst — die Familienfarbe IST die Information. Hier nur Layout, keine Farbe.
+   `display: block` verhindert die Grundlinien-Lücke, die inline-SVGs sonst erzeugen. */
+.recipe-icon svg,
+.swap-card-icon svg,
+.cal-day-icon svg { display: block; }
+.cal-day-icon svg { margin-bottom: -1px; }
 
 
 /* ── Bottom Sheet (DaySheet, SwapSheet) ── */

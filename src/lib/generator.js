@@ -72,26 +72,30 @@ export function effortAllowed(recipe, cookEffort) {
 }
 
 // Auswahl-PRÄFERENZ nach Kochaufwand — getrennt von effortAllowed (das die Pool-MEMBERSHIP
-// bestimmt). effortAllowed sagt WAS erlaubt ist, effortPrefRank sagt was ZUERST gewählt wird.
-// Sonst ist 'high' nur ein erlaubtes Superset von 'low' → beide zeigen großteils dieselben
-// (mehrheitlich einfachen) Rezepte. Mit Präferenz zeigt "viel Aufwand" spürbar aufwändigere
-// Rezepte (v.a. Dinner — dort gibt es 30 medium/2 hard gegen 18 easy).
-//   high          → aufwändig zuerst: hard(0) < medium(1) < easy(2)
-//   medium / low  → keine Präferenz (Gradient: low=nur easy · medium=natürlicher Mix · high=aufwändig).
-//                   So ändert sich NUR das high-Verhalten; low/medium-Pläne bleiben bit-identisch.
-function effortPrefRank(recipe, cookEffort) {
+// bestimmt): effortAllowed sagt WAS erlaubt ist, der Bonus sagt was BEVORZUGT wird. Sonst wäre
+// 'high' nur ein erlaubtes Superset von 'low' → beide zeigen großteils dieselben (mehrheitlich
+// einfachen) Rezepte.
+//
+// WEICHE Präferenz statt hartem Tier-Ausschluss (Abwärtskompatibilität: einfache Menüs bleiben
+// auch bei "viel Aufwand" im Plan). Zwei Bausteine, beide nur bei 'high' aktiv:
+//   1. Score-Bonus: der Aufwand fließt in den Waste-Score ein (medium +2, hard +4), statt den
+//      Kandidaten-Pool hart aufs aufwändigste Tier zu reduzieren. Ein easy-Rezept mit großem
+//      Waste-Vorteil (offene verderbliche Packung, +5) kann aufwändige weiterhin schlagen.
+//   2. Kadenz: bei jedem EFFORT_SIMPLE_EVERY-ten Gericht pro Mahlzeiten-Kategorie dreht sich
+//      der Bonus um (easy +4, medium +2, hard 0) → regelmäßig gewinnt ein einfaches Gericht.
+//      Nötig, weil Bonus allein UND bonusfreie Slots empirisch ≈0 Effekt haben: zu den 30
+//      medium-Dinnern existiert praktisch immer eines, das dieselbe offene Grundzutat teilt
+//      wie das beste easy — easy gewänne nie. Auch der umgedrehte Slot ist WEICH: ein
+//      aufwändiges Rezept mit Perish-Vorteil (+5 > +4) darf ihn übernehmen.
+// medium / low → Bonus 0 (Gradient: low=nur easy · medium=natürlicher Mix · high=aufwändig
+// bevorzugt, mit easy-Einschlag). So ändert sich NUR das high-Verhalten; low/medium-Pläne
+// bleiben bit-identisch.
+const EFFORT_BONUS_PER_RANK = 2
+const EFFORT_SIMPLE_EVERY = 3
+function effortScoreBonus(recipe, cookEffort, preferSimple) {
   if (cookEffort !== 'high') return 0
-  return 2 - (EFFORT_RANK[recipe?.effort] ?? 0)
-}
-
-// Reduziert einen Kandidaten-Pool auf das am meisten bevorzugte Aufwands-Tier, das noch
-// Rezepte enthält (Reihenfolge innerhalb des Tiers erhalten). Kein-Präferenz → unverändert.
-function preferByEffort(pool, cookEffort) {
-  if (pool.length < 2 || cookEffort !== 'high') return pool
-  let best = Infinity
-  for (const r of pool) { const p = effortPrefRank(r, cookEffort); if (p < best) best = p }
-  const top = pool.filter(r => effortPrefRank(r, cookEffort) === best)
-  return top.length ? top : pool
+  const rank = EFFORT_RANK[recipe?.effort] ?? 0
+  return EFFORT_BONUS_PER_RANK * (preferSimple ? 2 - rank : rank)
 }
 
 // Frischfleisch-Detektion (NUR was wirklich verdirbt — canned tuna, jerky, salami zählen nicht).
@@ -539,6 +543,8 @@ function generatePlan({ days, diet, burners, bamagaActiveDay, fridge, groupF, al
   const openedPerishDay = new Map()  // packKey → Tag des ersten Öffnens
   const cookCount = new Map()        // recipeId → wie oft schon gekocht
   let curDay = 0                     // aktueller Tag (für Score/Spoil-Fenster)
+  // Gekochte Gerichte pro Kategorie — treibt die Aufwands-Kadenz (jedes n-te bonusfrei).
+  const effortMealCount = { f: 0, m: 0, a: 0 }
 
   // Leftover-Pairing: Quell-Dinner an Tag D → Rest-Lunch an Tag D+1.
   const leftoverTarget = Math.floor(days / 5)   // ~1 Leftover-Paar pro 5 Tage
@@ -581,16 +587,16 @@ function generatePlan({ days, diet, burners, bamagaActiveDay, fridge, groupF, al
     let pool = eligible
     if (!pool.length) pool = arr.filter(r => r.id !== avoidId)  // Pool erschöpft → Wiederholung nötig
     if (!pool.length) pool = arr                                // nur 1 Rezept → unvermeidbar
-    // Kochaufwand-Präferenz: bei "viel Aufwand" nur das aufwändigste noch verfügbare Tier
-    // betrachten (Waste-Score entscheidet weiterhin INNERHALB des Tiers). Erst wenn die
-    // aufwändigen Rezepte im Rahmen der Wiederhol-Regeln verbraucht sind, kommen einfachere.
-    // Bei low/medium ein No-op → deren Pläne bleiben unverändert.
-    pool = preferByEffort(pool, cookEffort)
+    // Kochaufwand als WEICHER Score-Bonus statt hartem Tier-Ausschluss (nur bei 'high' ≠ 0).
+    // Jedes EFFORT_SIMPLE_EVERY-te Gericht der Kategorie dreht die Präferenz um → einfache
+    // Rezepte erscheinen regelmäßig im Mix, aufwändige bleiben in der Mehrheit. key[0] =
+    // Kategorie ('f'/'m'/'a', auch bei Meat-Tier-Keys wie "a:short").
+    const preferSimple = effortMealCount[key[0]] % EFFORT_SIMPLE_EVERY === EFFORT_SIMPLE_EVERY - 1
     const start = idxRef[key] || 0
     let best = null, bestScore = -Infinity, bestOrd = 0
     for (let j = 0; j < pool.length; j++) {
       const r = pool[(start + j) % pool.length]
-      const sc = wasteScore(r)
+      const sc = wasteScore(r) + effortScoreBonus(r, cookEffort, preferSimple)
       if (sc > bestScore) { bestScore = sc; best = r; bestOrd = j }
     }
     idxRef[key] = start + bestOrd + 1
@@ -601,6 +607,7 @@ function generatePlan({ days, diet, burners, bamagaActiveDay, fridge, groupF, al
   // Round-Robin), damit spätere Tage die geöffneten Packungen kennen.
   function noteCooked(recipe) {
     if (!recipe) return
+    if (effortMealCount[recipe.cat] != null) effortMealCount[recipe.cat]++
     cookCount.set(recipe.id, (cookCount.get(recipe.id) || 0) + 1)
     for (const k of recipePackKeys(recipe)) {
       const info = PACK_SIZES[k]

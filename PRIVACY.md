@@ -11,12 +11,12 @@
     durch die echte Support-Adresse ersetzen (2 Stellen: Contact-Zeile oben + § 9).
 -->
 
-# Privacy Policy — Cape York 2026
+# Privacy Policy — Cape York
 
 **Effective:** 2026-05-03
 **Contact:** support@example.com
 
-This is the privacy policy for the **Cape York 2026** trip-planning app
+This is the privacy policy for the **Cape York** trip-planning app
 (web app and Android app — both versions covered).
 
 We have written this in plain language. The TL;DR is: **the app does not
@@ -27,7 +27,7 @@ stays on your device.
 
 ## 1. What data the app handles
 
-When you use Cape York 2026, you enter trip-planning information into the
+When you use Cape York, you enter trip-planning information into the
 app — for example:
 
 - Number of days on the road and trip start date

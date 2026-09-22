@@ -370,6 +370,21 @@ export function deleteTripFromStore(store, id) {
 export function renameTripInStore(store, id, name) {
   return { ...store, trips: store.trips.map(t => (t.id === id ? { ...t, name } : t)) }
 }
+// Name + Beschreibung aus dem Wizard-Schritt 1. Bewusst am Trip und NICHT in der Config:
+// `name` lebt dort schon (Umbenennung auf der Home-Karte), eine Kopie in der Config gäbe
+// zwei konkurrierende Quellen. Leerer/whitespace-only Name → bestehender Name bleibt,
+// damit ein geleertes Feld keinen namenlosen Trip erzeugt.
+export function setTripMetaInStore(store, id, { name, description } = {}) {
+  return {
+    ...store,
+    trips: store.trips.map(t => {
+      if (t.id !== id) return t
+      const nextName = typeof name === 'string' && name.trim() ? name.trim() : t.name
+      const nextDesc = typeof description === 'string' ? description.trim() : (t.description || '')
+      return { ...t, name: nextName, description: nextDesc }
+    }),
+  }
+}
 export function setActiveInStore(store, id) {
   return store.trips.some(t => t.id === id) ? { ...store, activeTripId: id } : store
 }
@@ -419,7 +434,13 @@ export function loadTripStore() {
     // Bildschirm beim App-Start. Ungültige Einträge fliegen raus, fehlende Namen bekommen Default.
     existing.trips = existing.trips
       .filter(t => t && typeof t === 'object' && typeof t.id === 'string')
-      .map(t => ({ ...t, name: typeof t.name === 'string' && t.name ? t.name : defaultTripName(), config: mergeConfig(t.config) }))
+      .map(t => ({
+        ...t,
+        name: typeof t.name === 'string' && t.name ? t.name : defaultTripName(),
+        // Beschreibung ist optional und kam erst später dazu — alte Trips haben sie nicht.
+        description: typeof t.description === 'string' ? t.description : '',
+        config: mergeConfig(t.config),
+      }))
     if (!existing.trips.some(t => t.id === existing.activeTripId)) {
       existing.activeTripId = existing.trips[0]?.id ?? null
     }

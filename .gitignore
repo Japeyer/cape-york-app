@@ -24,3 +24,6 @@ npm-debug.log*
 
 # Recon-Reststück (QPWS-Metadata, siehe CHANGELOG 2026-05-15 (v))
 qpws-meta.xml
+
+# Output von scripts/gen-image.mjs (OpenAI Images API) - gehoert nicht ins Repo.
+generated-images/

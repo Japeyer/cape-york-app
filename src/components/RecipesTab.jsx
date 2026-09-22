@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { RECIPES } from '../data/recipes.js'
 import { S } from '../strings.js'
 import PremiumGate from './PremiumGate.jsx'
+import { FoodIcon } from './food-icons.jsx'
 import VeganBadge from './VeganBadge.jsx'
 import { FREE_LIMITS } from '../lib/premium.js'
 import { scaleAmountLabel, BASE_SERVINGS } from '../lib/generator.js'
@@ -138,7 +139,7 @@ function RecipeCard({ recipe, persons, factor, toppingAllergens, focused }) {
   return (
     <div className="recipe-card" data-recipe={recipe.id}>
       <div className="recipe-head" data-tour="recipes-card" onClick={() => setOpen(o => !o)}>
-        <div className="recipe-icon">{recipe.icon}</div>
+        <div className="recipe-icon"><FoodIcon icon={recipe.icon} size={28} /></div>
         <div className="recipe-info">
           <div className="recipe-name">
             {recipe.name}

@@ -5,7 +5,7 @@ import SwapSheet from './SwapSheet.jsx'
 import PremiumGate from './PremiumGate.jsx'
 import VeganBadge from './VeganBadge.jsx'
 import { FREE_LIMITS } from '../lib/premium.js'
-import { parseISO, diffDays } from '../lib/dates.js'
+import { parseISO, diffDays, addDays } from '../lib/dates.js'
 import { RECIPES } from '../data/recipes.js'
 import { isShoppableIngredient } from '../lib/generator.js'
 
@@ -264,9 +264,41 @@ function MealStatusSheet({ open, meal, current, onSave, onClose }) {
   )
 }
 
+// Kalenderdatum eines Trip-Tags ("Monday, June 1"). Ohne startDate → null, der Aufrufer
+// fällt dann auf `day.dt` ("Day N") zurück, damit die Titelzeile nie leer bleibt.
+// Jahr bewusst weggelassen: im Kartenkopf ist der Platz knapp und der Trip liegt
+// ohnehin in einem einzigen Jahr (die Jahreszahl steht auf der Home-Karte).
+function formatDayDate(startDate, dayNum) {
+  if (!startDate) return null
+  const start = parseISO(startDate)
+  if (!start || Number.isNaN(start.getTime())) return null
+  const d = addDays(start, dayNum - 1)
+  const wd = S.config.calendar.weekdaysFull[(d.getDay() + 6) % 7]
+  const mo = S.config.calendar.monthNames[d.getMonth()]
+  return `${wd}, ${mo} ${d.getDate()}`
+}
+
+// Einzeiler über alle drei Mahlzeiten für den zugeklappten Kartenkopf.
+// Vorher stand hier nur das Abendessen, was laut Entwickler verwirrte ("warum nur
+// das Abendessen?"). Die Sonderfälle sprechen dieselbe Sprache wie MealRow in der
+// aufgeklappten Karte. Pickup-/Dropoff-Slots (Tag 1 / letzter Tag) fallen raus —
+// sie sind keine Mahlzeit, sondern eine Logistik-Notiz.
+function mealSummary(day) {
+  return [day.f, day.m, day.ab]
+    .map(meal => {
+      if (!meal || meal.skip) return null
+      if (meal.rest) return `🍽 ${meal.rname}`
+      if (meal.leftover) return S.menu.leftover.lunch({ fromDay: meal.fromDay })
+      return meal.t || null
+    })
+    .filter(Boolean)
+    .join(S.menu.mealSep)
+}
+
 // Open-State liegt in MenuTab (parent) — der Jump-Bar muss eine Card aufklappen können
 // wenn der User darauf springt. DayCard ist deshalb stateless bezüglich open/close.
-function DayCard({ day, isToday, isOpen, onToggle, onRecipeClick, onSwap, onMark }) {
+function DayCard({ day, isToday, isOpen, startDate, onToggle, onRecipeClick, onSwap, onMark }) {
+  const dateLabel = formatDayDate(startDate, day.d)
   return (
     <div
       data-day={day.d}
@@ -275,18 +307,20 @@ function DayCard({ day, isToday, isOpen, onToggle, onRecipeClick, onSwap, onMark
       {/* data-tour: Anker für das Seiten-Tutorial (nur am ersten Tag, der Spotlight
           nimmt sonst irgendeine Karte weiter unten). */}
       <div className="day-head" data-tour={day.d === 1 ? 'menu-day' : undefined} onClick={onToggle}>
+        {/* Kästchen trägt den Tag-Bezeichner — genau einmal. Die Titelzeile daneben
+            zeigt deshalb das Datum, nicht nochmal "Day N". */}
         <div className="day-num">
+          <span className="day-num-lbl">{S.menu.dayShort}</span>
           <span className="day-num-n">{day.d}</span>
-          {day.dt}
         </div>
         <div className="day-info">
           <div className="day-title">
-            {day.dt}
+            {dateLabel || day.dt}
             {isToday && <span className="day-today-pill">{S.menuJump.todayPill}</span>}
             {day.ab?.spec && <span className="tag tag-special">{S.menu.tags.special}</span>}
             {day.bamaga && <span className="tag tag-n">{S.menu.tags.new}</span>}
           </div>
-          <div className="day-date">{day.ab?.t || ''}</div>
+          <div className="day-meals">{mealSummary(day)}</div>
         </div>
         <div className={`day-arrow${isOpen ? ' open' : ''}`}>▾</div>
       </div>
@@ -424,6 +458,7 @@ export default function MenuTab({ plan, config, allergens, onJumpToRecipe, onSet
           day={d}
           isToday={d.d === todayDay}
           isOpen={openDays.has(d.d)}
+          startDate={config?.startDate}
           onToggle={() => toggleDay(d.d)}
           onRecipeClick={onJumpToRecipe}
           onSwap={locked ? null : handleSwap}

@@ -55,6 +55,10 @@ function TripCard({ trip, onOpen, onEdit, onDelete, onRename }) {
       {done ? (
         <button className="home-trip-body" data-tour="home-open" onClick={() => onOpen(trip.id)}>
           <div className="home-trip-dates">{start}{end && ` → ${end}`}</div>
+          {/* Optionale Beschreibung aus Wizard-Schritt 1 — nur wenn gesetzt. */}
+          {trip.description && (
+            <div className="home-trip-desc">{trip.description}</div>
+          )}
           <div className="home-trip-summary">{S.home.tripStats({ days: cfg.days, persons, dietLabel })}</div>
           <div className="home-trip-cta">{S.home.openCta} →</div>
         </button>

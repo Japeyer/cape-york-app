@@ -92,7 +92,7 @@ export const RECIPES = [
    diet:'vegan',cooling:'medium',effort:'easy',burners:1,
    ing:[['Sandwich bread','2 slices/person'],['Avocado','1 ripe/person'],['Tomato','1/person, sliced'],['Lemon juice','1 tbsp'],['Olive oil','2 tbsp'],['Chili flakes','to taste'],['Salt & pepper','to taste']],
    steps:['Toast bread in a dry pan over medium heat 1–2 min per side, or eat untoasted if no gas.','Halve avocado, scoop into bowl, mash with fork. Add lemon juice, salt.','Spread avocado generously and thickly on the toast.','Top with tomato slices, drizzle olive oil, scatter chili flakes.','Season with pepper.'],
-   tip:'Pile the avocado thick — the calories are the point. Buy avocados slightly underripe in Cairns and let them ripen in the heat. Add Vegemite under the avocado for an Aussie twist.'},
+   tip:'Pile the avocado thick — the calories are the point. Buy avocados slightly underripe and let them ripen in the heat. Add Vegemite under the avocado for an Aussie twist.'},
 
   {id:'f8',cat:'f',icon:'🥓',
    name:'Bacon and egg roll',
@@ -132,7 +132,7 @@ export const RECIPES = [
    diet:'vegan',cooling:'low',effort:'easy',burners:1,
    ing:[['Firm tofu','150g/person, drained'],['Tortilla wraps','1/person'],['Avocado','0.5/person, mashed'],['Cherry tomatoes','80g/person, halved'],['Spinach','30g/person'],['Nutritional yeast','1 tbsp/person'],['Curry powder','0.5 tsp'],['Smoked paprika','0.5 tsp'],['Olive oil','2 tbsp'],['Salsa','1 tbsp/person'],['Salt','to taste']],
    steps:['Crumble tofu with hands directly into the pan — chunks should look like scrambled egg curds.','Add olive oil, turmeric, paprika, garlic powder. Stir over medium heat 5 min until tofu picks up colour and crisps lightly at edges.','Stir in nutritional yeast, salt (and a pinch of black salt for an eggy hit if you packed it). 1 min more.','Warm tortilla in a dry corner of the pan 30 sec per side.','Build: tortilla, mashed avocado, tofu scramble, cherry tomatoes, spinach, salsa. Roll tight, cut.'],
-   tip:'Black salt (kala namak, Indian shop in Cairns) gives this the sulfur tang of real eggs — vegans swear by it. The tofu chunks are key — don\'t over-mash, you want texture. Fast, vegan, calorie-loaded.'},
+   tip:'Black salt (kala namak, from an Indian grocer) gives this the sulfur tang of real eggs — vegans swear by it. The tofu chunks are key — don\'t over-mash, you want texture. Fast, vegan, calorie-loaded.'},
 
   {id:'f13',cat:'f',icon:'🍅',
    name:'Shakshuka with crusty toast',
@@ -377,18 +377,18 @@ export const RECIPES = [
    tip:'The most common mistake: leaving the pan on the flame when adding the eggs — that gives you scrambled eggs, not carbonara! Heat off, then eggs in, toss fast. Pasta water is essential here.'},
 
   {id:'a7',cat:'a',icon:'🍗',
-   name:'Chicken stir-fry with rice (Bamaga)',
+   name:'Chicken stir-fry with rice',
    time:'25 min',tools:'1 pan + 1 pot',kcal:'~1050 kcal/person',
    diet:'omnivore',cooling:'high',effort:'medium',burners:2,parallel:true,
-   ing:[['Chicken breast (fresh from Bamaga)','150g/person, in strips'],['Jasmine rice','150g/person'],['Zucchini','1 (fresh from Bamaga)'],['Onion','1'],['Garlic','3 cloves'],['Soy sauce','3 tbsp'],['Oyster sauce','1 tbsp'],['Oil','2 tbsp'],['Salt & pepper','to taste']],
+   ing:[['Chicken breast','150g/person, in strips'],['Jasmine rice','150g/person'],['Zucchini','1'],['Onion','1'],['Garlic','3 cloves'],['Soy sauce','3 tbsp'],['Oyster sauce','1 tbsp'],['Oil','2 tbsp'],['Salt & pepper','to taste']],
    steps:['Start the rice: 150g/person with 1.5× water, bring to boil, 15 min on low.','Slice chicken into strips. Cut veg into pieces.','Pan very hot, add oil. Sear chicken 5–6 min until golden. Remove.','Fry onion and garlic 2 min. Add veg, stir-fry 3 min.','Return chicken, drizzle sauces, toss 1–2 min.','Serve with rice.'],
-   tip:'The first home-cooked meal after a long Bamaga shopping day — keep it simple! Throw in whatever you got fresh from Bamaga. Soy sauce makes everything tasty.'},
+   tip:'The perfect first meal after a resupply day — keep it simple! Throw in whatever you picked up fresh. Soy sauce makes everything tasty.'},
 
   {id:'a8',cat:'a',leftovers:true,icon:'🍛',
    name:'Red curry with ground beef',
    time:'25 min',tools:'1 pot + 1 pot (rice)',kcal:'~1100 kcal/person',
    diet:'omnivore',cooling:'high',effort:'medium',burners:2,
-   ing:[['Ground beef (fresh from Bamaga)','150g/person'],['Jasmine rice','150g/person'],['Coconut milk (full-fat)','1 × 400ml can'],['Curry powder','2 tbsp'],['Capsicum','1'],['Onion','1'],['Garlic','3 cloves'],['Diced tomatoes','0.5 can (200g)'],['Fish sauce','1 tbsp'],['Oil','1 tbsp']],
+   ing:[['Ground beef','150g/person'],['Jasmine rice','150g/person'],['Coconut milk (full-fat)','1 × 400ml can'],['Curry powder','2 tbsp'],['Capsicum','1'],['Onion','1'],['Garlic','3 cloves'],['Diced tomatoes','0.5 can (200g)'],['Fish sauce','1 tbsp'],['Oil','1 tbsp']],
    steps:['Start rice as usual (1:1.5 water, 15 min).','Fry onion and garlic in oil for 3 min. Add curry paste, fry 1 min.','Add ground beef, brown over high heat 5–6 min, breaking it up.','Add bell pepper, fry 2 min. Pour in coconut milk and canned tomatoes.','Simmer gently 15 min. Stir in fish sauce, taste.','Serve with rice.'],
    tip:'Red curry paste is a touch milder than green — perfect for the middle of the trip. Eat leftovers cold as a wrap the next day.'},
 
@@ -396,7 +396,7 @@ export const RECIPES = [
    name:'Lamb chops with sweet potato mash',
    time:'30 min',tools:'1 pan + 1 pot',kcal:'~1050 kcal/person',
    diet:'omnivore',cooling:'high',effort:'medium',burners:2,
-   ing:[['Lamb chops (fresh from Bamaga)','2/person (~200g)'],['Sweet potato','250g/person'],['Butter','30g/person'],['UHT milk','50ml/person (for the mash)'],['Peas (canned)','100g/person'],['Garlic','2 cloves'],['Mixed dried herbs','1 tsp'],['Olive oil','1 tbsp'],['Salt & pepper','to taste']],
+   ing:[['Lamb chops','2/person (~200g)'],['Sweet potato','250g/person'],['Butter','30g/person'],['UHT milk','50ml/person (for the mash)'],['Peas (canned)','100g/person'],['Garlic','2 cloves'],['Mixed dried herbs','1 tsp'],['Olive oil','1 tbsp'],['Salt & pepper','to taste']],
    steps:['Peel and dice sweet potatoes, boil in salted water for 15 min until tender. Drain.','Add butter and milk to the sweet potatoes, mash until creamy. Salt.','Warm peas briefly in the same pot or with hot water from the kettle.','Season lamb chops with salt, pepper and oregano.','Pan very hot, olive oil in. Fry chops 3–4 min per side — still pink inside. Rest!','Plate everything together.'],
    tip:'Don\'t overcook lamb chops — well-done is tough. 3–4 min per side over high heat, then 3 min rest. A touch of pink inside is perfect. A generous pat of butter in the sweet potato mash makes it especially calorie-rich.'},
 
@@ -412,7 +412,7 @@ export const RECIPES = [
    name:'Chili con carne with rice',
    time:'35 min',tools:'1 pot + 1 pot (rice)',kcal:'~1100 kcal/person',
    diet:'omnivore',cooling:'high',effort:'hard',burners:2,
-   ing:[['Ground beef (Bamaga, thawed)','150g/person'],['Jasmine rice','150g/person'],['Kidney beans (canned)','1 × 400g can (for both)'],['Corn (canned)','0.5 × 400g can'],['Diced tomatoes','1 × 400g can'],['Tomato paste','1 tbsp'],['Onion','1 large'],['Garlic','3 cloves'],['Cumin','2 tsp — important!'],['Smoked paprika','1 tsp'],['Curry powder','1 tsp'],['Chili flakes','to taste'],['Beef stock cube','1'],['Oil','2 tbsp'],['Salt & pepper','to taste']],
+   ing:[['Ground beef','150g/person'],['Jasmine rice','150g/person'],['Kidney beans (canned)','1 × 400g can (for both)'],['Corn (canned)','0.5 × 400g can'],['Diced tomatoes','1 × 400g can'],['Tomato paste','1 tbsp'],['Onion','1 large'],['Garlic','3 cloves'],['Cumin','2 tsp — important!'],['Smoked paprika','1 tsp'],['Curry powder','1 tsp'],['Chili flakes','to taste'],['Beef stock cube','1'],['Oil','2 tbsp'],['Salt & pepper','to taste']],
    steps:['Start rice: 150g/person + 1.5× water, bring to boil, 15 min on low.','Dice the onion, fry over medium heat in oil 3–4 min until translucent.','Add garlic 1 min. Stir in all spices (cumin, paprikas, coriander, chili) — toast 1 min until fragrant.','Add ground beef, brown over high heat 5–6 min, breaking it up.','Stir in tomato paste 1 min. Add canned tomatoes, drained kidney beans, corn and crumbled stock cube.','Simmer 20 min on low, stirring occasionally. Taste — usually wants more cumin.','Serve with rice.'],
    tip:'Chili tastes even better reheated the next day — save leftovers for lunch! Cumin is THE key spice for chili — don\'t skimp. If you still have sour cream: spoon it on top!'},
 
@@ -600,7 +600,7 @@ export const RECIPES = [
    diet:'vegan',cooling:'high',effort:'easy',burners:1,
    ing:[['Vegan sausages (e.g. v2food, Linda McCartney)','3/person'],['Baked beans (canned)','0.5 × 400g can/person'],['Sandwich bread','2 slices/person'],['Vegan butter','15g (for both)'],['Tomato sauce','1 tbsp/person to serve'],['Spring onion','1/person'],['Salt & pepper','to taste']],
    steps:['Heat pan medium with 1 tbsp oil. Add vegan sausages, fry 6–8 min, turning occasionally, until browned all over.','Push sausages to one side. Pour baked beans into the empty space, warm through 3 min, stirring.','Toast bread directly in the pan or in a separate pan/over coals. Spread with vegan butter.','Plate: toast on the bottom, beans poured over, sausages stacked alongside.','Garnish with spring onions, dollop of tomato sauce. Pepper.'],
-   tip:'Aussie pub-style brekkie, fully plant-based. Most supermarket vegan snags need refrigeration — eat within 4–5 days of Cairns shop or first cluster from Bamaga. v2food breakfast snags or Linda McCartney red onion + rosemary are the standout brands. Pre-grilled at the campfire works great too.'},
+   tip:'Aussie pub-style brekkie, fully plant-based. Most supermarket vegan snags need refrigeration — eat within 4–5 days of shopping. v2food breakfast snags or Linda McCartney red onion + rosemary are the standout brands. Pre-grilled at the campfire works great too.'},
 
   {id:'f15',cat:'f',icon:'🌯',
    name:'Plant-based bacon and avocado breakfast wrap',
@@ -621,7 +621,7 @@ export const RECIPES = [
    diet:'vegan',cooling:'medium',effort:'easy',burners:0,
    ing:[['Chia seeds','3 tbsp/person'],['Coconut milk','250ml/person'],['Maple syrup','22ml/person'],['Mango','0.5/person, diced'],['Banana','0.5/person, sliced (optional)'],['Shredded coconut','2 tbsp/person, toasted'],['Lime zest','0.5 lime (for both)'],['Salt','pinch']],
    steps:['Night before: whisk chia + coconut milk + maple syrup + vanilla + salt in a sealable container. Whisk again after 5 min to break up clumps. Cover, fridge overnight (or 4 hrs minimum).','Morning: toast shredded coconut in a DRY pan 2 min over medium, shaking constantly until golden. Cool.','Stir pudding — should be thick like rice pudding. If too thick, splash more coconut milk.','Top each bowl with diced mango, banana slices, toasted coconut, lime zest. Drizzle more maple syrup if you want sweeter.'],
-   tip:'Allergy-defensive brekkie at its finest — vegan, gluten-free, soy-free, nut-free, egg-free. The chia gel needs hours to set, so this is a "prep at dinner, eat at sunrise" deal. Canned coconut milk = creamier; UHT in tetra = lighter. Frozen mango works if fresh isn\'t available (Bamaga has frozen). Toasted coconut is non-negotiable — it\'s the texture contrast that makes the bowl.'},
+   tip:'Allergy-defensive brekkie at its finest — vegan, gluten-free, soy-free, nut-free, egg-free. The chia gel needs hours to set, so this is a "prep at dinner, eat at sunrise" deal. Canned coconut milk = creamier; UHT in tetra = lighter. Frozen mango works if fresh isn\'t available. Toasted coconut is non-negotiable — it\'s the texture contrast that makes the bowl.'},
 
   {id:'f17',cat:'f',icon:'🍓',
    name:'Quinoa breakfast bowl with berries and yogurt',
@@ -781,7 +781,7 @@ export const RECIPES = [
    diet:'omnivore',cooling:'high',effort:'medium',burners:3,occasion:'special',
    ing:[['Beef ribeye steak','300g/person'],['Potatoes','300g/person, cut into wedges'],['Butter','40g/person'],['Garlic','4 cloves, smashed'],['Mixed dried herbs','1 tsp'],['Cherry tomatoes (on the vine)','100g/person'],['Olive oil','4 tbsp'],['Smoked paprika','1 tsp'],['Lemon wedges','to serve'],['Salt','to taste'],['Black pepper','generous']],
    steps:['Take steaks out of cooler 30 min before cooking — room temp = even cook. Salt heavily.','Burner 1 (pot/pan): Toss potato wedges with 2 tbsp olive oil, paprika, salt. Pan-roast over medium 18–20 min, turning occasionally, until deeply golden and crisp.','Burner 2 (cast-iron or heavy pan): Heat dry, screaming hot. Brush steaks with olive oil, lay in pan. 3 min UNDISTURBED for the crust. Flip, 2–3 min for medium-rare (4 min for medium).','In the last 1 min: drop butter, smashed garlic, thyme into the pan. Tilt pan, baste steak continuously with the foaming garlic butter. Magic happens here.','Burner 3 (pan): Heat splash of olive oil hot. Throw cherry tomatoes (still on vine) in for 2 min until skins blister. Salt.','Rest steaks 5 min on a board (mandatory — juices redistribute). Slice against the grain.','Plate: wedges, sliced steak with garlic butter spooned over, blistered tomatoes, lemon wedge. Flaky salt + pepper at the table.'],
-   tip:'Special occasion meal — splurge on quality ribeye in Cairns (~$25/person, marbled, 2.5cm thick). Cast-iron pan if you packed one is ideal — heavy + retains heat. The garlic-butter baste is non-negotiable, this is what makes restaurant steak. Resting is what separates good steak from juicy steak. Pair with a cold beer.'},
+   tip:'Special occasion meal — splurge on quality ribeye (~$25/person, marbled, 2.5cm thick). Cast-iron pan if you packed one is ideal — heavy + retains heat. The garlic-butter baste is non-negotiable, this is what makes restaurant steak. Resting is what separates good steak from juicy steak. Pair with a cold beer.'},
 
   {id:'a37',cat:'a',icon:'🍖',
    name:'BBQ pork ribs with corn on the cob and slaw',
@@ -797,7 +797,7 @@ export const RECIPES = [
    diet:'vegetarian',cooling:'medium',effort:'medium',burners:3,occasion:'special',
    ing:[['Eggplant','1 medium/person, sliced 1cm rounds'],['Mozzarella (vacuum-packed)','120g/person, sliced'],['Parmesan, grated','60g/person'],['Diced tomatoes (canned)','1 × 400g can (for both)'],['Tomato paste','2 tbsp'],['Garlic','5 cloves total (3 for sauce, 2 for toast)'],['Olive oil','6 tbsp'],['Mixed dried herbs','1 tsp'],['Chili flakes','0.5 tsp'],['Sourdough bread','3 thick slices/person'],['Butter','30g/person'],['Sugar','1 tsp (balances sauce)'],['Salt & pepper','to taste']],
    steps:['Aubergine prep: salt the slices generously, rest 15 min on paper towel — pulls out bitterness. Pat dry.','Burner 1 (pan): Heat 4 tbsp olive oil hot. Fry aubergine slices in batches 2 min/side until deeply golden. Drain. Add more oil between batches.','Burner 2 (pan): Heat 2 tbsp olive oil. Sauté 3 chopped garlic cloves 30 sec. Add diced tomatoes, tomato paste, basil, oregano, chili, sugar. Salt + pepper. Simmer 12 min until thick.','Burner 3 (deep pan with lid): Build layers in the deep pan — sauce, aubergine slices, mozzarella slices, parmesan. Repeat 2-3 times. End with cheese on top.','Cover, cook on low 10 min until cheese melts and bubbles at edges.','Garlic toast: mix softened butter with 2 minced garlic cloves + parsley. Spread on bread, toast in dry pan 2 min/side until golden.','Serve parmigiana straight from the pan, garlic toast for sopping up sauce.'],
-   tip:'Italian Sunday-lunch indulgence on the road. Salting the aubergine is key — without it, sauce gets bitter and oily. Use the BIG pan (deep, with lid) for layering — improvised "dutch oven" works perfectly. Vacuum-packed mozzarella keeps weeks; if you find buffalo mozz in Cairns, splurge — game changer.'},
+   tip:'Italian Sunday-lunch indulgence on the road. Salting the aubergine is key — without it, sauce gets bitter and oily. Use the BIG pan (deep, with lid) for layering — improvised "dutch oven" works perfectly. Vacuum-packed mozzarella keeps weeks; if you find buffalo mozz, splurge — game changer.'},
 
   {id:'a39',cat:'a',icon:'🧀',
    name:'Halloumi mezze platter with dips and warm flatbread',
@@ -805,7 +805,7 @@ export const RECIPES = [
    diet:'vegetarian',cooling:'medium',effort:'easy',burners:2,occasion:'special',
    ing:[['Halloumi','200g/person, sliced 1cm thick'],['Pita bread','3/person'],['Hummus (good quality, jarred)','100g/person'],['Tzatziki','80g/person'],['Kalamata olives','60g/person'],['Cherry tomatoes','100g/person'],['Cucumber','0.5/person, sliced'],['Roasted red capsicum (jarred)','60g/person'],['Honey','30ml/person, for halloumi'],['Olive oil','3 tbsp'],['Lemon','0.5/person'],['Mixed dried herbs','1 tsp'],['Black pepper','generous']],
    steps:['Burner 1 (pan, dry): Heat hot. Lay halloumi slices, sear 1.5 min/side until golden-crusted and squeaky-tender. Plate, drizzle hot honey over while still hot — it sizzles into the cheese.','Burner 2 (pan): Warm flatbreads briefly 30 sec/side. Stack under foil to keep soft.','While bread warms: arrange the platter. Center mounds of hummus + tzatziki, surround with olives, tomatoes, cucumber, capsicum.','Add pan-seared halloumi on top. Drizzle olive oil over everything, squeeze lemon, sprinkle za\'atar.','Eat communally — tear bread, scoop dips, build mini-mezze bites. No utensils needed.'],
-   tip:'Mediterranean sharing-feast for a layover day. Halloumi-with-hot-honey is the Trojan-horse star — sweet-salty-squeaky combo blows people away. Buy good jarred dips in Cairns (Yalla, Macro, Coles deli) — quality matters here, the dips ARE the meal. Pita warmed in dry pan beats microwave-soft any day.'},
+   tip:'Mediterranean sharing-feast for a layover day. Halloumi-with-hot-honey is the Trojan-horse star — sweet-salty-squeaky combo blows people away. Buy good jarred dips (Yalla, Macro, Coles deli) — quality matters here, the dips ARE the meal. Pita warmed in dry pan beats microwave-soft any day.'},
 
   {id:'a40',cat:'a',icon:'🌮',
    name:'Jackfruit pulled "pork" tacos with all the trimmings',
