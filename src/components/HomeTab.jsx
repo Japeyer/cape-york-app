@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { KangarooIcon } from './icons.jsx'
 import { S } from '../strings.js'
 import { parseISO, addDays } from '../lib/dates.js'
 
@@ -86,7 +87,7 @@ export default function HomeTab({ trips = [], premium = false, maxFreeTrips = 1,
     return (
       <div className="home-wrap">
         <div className="home-empty">
-          <div className="home-empty-icon">🦘</div>
+          <div className="home-empty-icon"><KangarooIcon /></div>
           <h2 className="home-empty-title">{S.home.emptyTitle}</h2>
           <p className="home-empty-sub">{S.home.emptySub}</p>
           <button className="home-create-btn" data-tour="home-create" onClick={onCreateNew}>{S.home.createCta}</button>

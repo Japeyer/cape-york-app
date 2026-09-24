@@ -97,7 +97,7 @@ function buildHtml(bodyHtml) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#C0600C" />
   <meta name="robots" content="index,follow" />
-  <title>Privacy Policy — Cape York</title>
+  <title>Privacy Policy — Cape York Planner</title>
   <style>${CSS}</style>
 </head>
 <body>

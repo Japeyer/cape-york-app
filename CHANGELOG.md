@@ -5,6 +5,357 @@ Bei jeder substanziellen Änderung **eine neue Zeile/Block hinzufügen** und den
 
 ---
 
+## 2026-09-24 (ck) — Auto-Emoji im Plan durch das echte Fahrzeug-Icon ersetzt (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ersetze alle Auto-Icons im Plan mit dem neuen Icon vom
+Generated-Images-Folder."
+
+**Befund:** „Alle" ist **eine** Codestelle — `MenuTab.jsx`, die Skip-Zeile der Pickup-/
+Dropoff-Slots (`🚙 {text}`). Sie rendert pro Trip zweimal: Tag 1 Frühstück (Fahrzeugübernahme)
+und letzter Tag Abendessen (Rückgabe). Sonst führt `src/` kein Fahrzeug-Emoji — weder
+`🚙`/`🚗`/`🚐`/`🛻` noch eines in `strings.js`.
+
+**Welche Datei — und warum nicht die aus `generated-images/`:** Das Motiv ist der 4WD mit
+Dachzelt, im Ordner als `generated-images/car-orange.png` (1024 × 1024, **845 KB**, auf
+schwarzem Grund). Daraus entstand bereits `public/wizard-car.png` (104 × 82, **7.7 KB**,
+freigestellt) für die Wizard-Fortschrittsleiste — beide per Bildvergleich als dasselbe Motiv
+bestätigt. Eingebunden wird die **aufbereitete** Fassung:
+- Das 1024er-Original wären 845 KB Precache in einer App, die offline auf dem Cape laufen muss.
+- Bei 18 px Anzeigehöhe bringt die Auflösung nichts.
+- `wizard-car.png` liegt ohnehin schon im Precache → **0 neue Bytes** (Build danach: 31 Einträge,
+  1889.62 KiB; `dist/wizard-car.png` 7882 Bytes, im `sw.js` referenziert).
+- Gleiches Bild wie in der Fortschrittsleiste → das Fahrzeug sieht überall identisch aus.
+
+**Geändert:** `MenuTab.jsx` (neue Konstante `CAR_SRC` über `import.meta.env.BASE_URL` — ein
+absoluter Pfad zeigt unter `/cape-york-app/` auf GitHub Pages ins Leere; `<img>` statt Emoji mit
+`alt=""`, weil der Text daneben die Aussage schon trägt und ein Screenreader sonst doppelt
+vorliest). `App.css`: `.meal-skip-car` mit `height: 18px`, `width: auto` (hält das
+104×82-Verhältnis) und `vertical-align: -4px` für die Schriftlinie der kursiven Zeile.
+
+**`CAR_SRC` steht jetzt zweimal im Code** — hier und in `TripProgress.jsx`. Bewusst nicht in ein
+gemeinsames Modul gezogen: an `TripProgress.jsx` arbeitet parallel ein zweiter Agent, ein
+Refactoring dort hätte kollidiert. Wenn beide Stränge zusammengeführt sind, ist das eine
+Ein-Zeilen-Aufräumung (z.B. `lib/assets.js`).
+
+**Test:** `MenuTab.test.jsx` um einen Fall erweitert (TDD, erst rot mit `'🚙 Vehicle pickup …'`):
+beide Skip-Zeilen tragen `img.meal-skip-car`, das `src` endet auf `wizard-car.png`, `alt` ist
+leer, und `🚙` steht nirgends mehr im Text. **464 Tests grün**, Build grün.
+
+---
+
+## 2026-09-24 (cj) — Nav-Label „Menu" → „Plan" (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ändere in der Navigationsleiste Menu zu Plan."
+
+**Geändert:** genau eine Zeile — `S.app.tabs.menu: 'Menu'` → `'Plan'`. Das Label hat nur eine
+Fundstelle (`buildActiveTripTabs` in `App.jsx`), der Rest der App spricht über die **ID** `menu`
+(`activeTab`, Tour-Seite `menu`, Scroll-Restore). Die ID bleibt deshalb unverändert — sie
+umzubenennen hätte `TOURS.menu`, den Auto-Fallback auf `'menu'` und gespeicherte Zustände
+berührt, ohne dass ein Nutzer etwas davon sähe. Im Strings-Eintrag steht das jetzt als Kommentar.
+
+Passt inhaltlich: die Leiste liest sich nun **Plan · Recipes · Shopping · Stock** — planen →
+kochen → kaufen → Bestand (die Reihenfolge stammt aus (br)), und „Plan" benennt die Seite
+treffender als „Menu", das neben „Recipes" mehrdeutig war.
+
+**Test mitgehärtet:** `ShopStopSheet.test.jsx` verglich die Nav-Beschriftungen gegen feste
+Strings (`['Menu', 'Recipes', …]`) und wäre an dieser Umbenennung zerbrochen. Er vergleicht
+jetzt gegen `S.app.tabs.*` — geprüft wird die **Reihenfolge**, nicht die Wortwahl. `PageTour.test.jsx`
+machte das schon vorher richtig (`navBtn(S.app.tabs.menu)`) und brauchte nichts.
+
+**463 Tests grün**, Build grün.
+
+---
+
+## 2026-09-23 (ci) — Einführungstexte raus, ⓘ pro Seite rein (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Für moderne Webseiten und Apps ist es am wichtigsten, dass mit
+Intuition gearbeitet wird und unnötige Informationen und Texte entfernt werden […] Da ja das
+Tutorial bereits die Funktionen jeder einzelnen Seite erklärt, braucht es nicht noch zusätzlich
+überall einen Satz, der das Gleiche tut. […] Als Ersatz fügst du aber oben rechts wie bei der
+Startseite ein Informations-Feld ein."
+
+**Neu: `src/components/PageInfoSheet.jsx`.** Bottom-Sheet hinter einem ⓘ oben rechts, das die
+Tutorial-Inhalte der aktuellen Seite nachliefert. **Die Inhalte werden nicht dupliziert:**
+Reihenfolge und Schlüssel kommen aus `TOURS[page]` (`lib/tours.js`), die Texte aus
+`S.tours[page]` — dieselbe Quelle, die der Spotlight benutzt. Ändert jemand das Tutorial, ändert
+sich das ⓘ mit; es kann nicht auseinanderlaufen. Das `cta`-Feld der Schritte („Tap the
+highlighted day") wird bewusst weggelassen: eine Handlungsaufforderung ohne Spotlight ergibt
+keinen Sinn.
+
+**ⓘ in der Topbar** auf allen Trip-Seiten und in den Wizard-Schritten, gleiche Klasse und
+Position wie das Home-ⓘ (der Platz rechts war auf diesen Seiten leer). Auf Home bleibt das ⓘ
+die App-Info (Datenschutz/Quellen) — dort ist es kein Seiten-Tutorial. Der Wizard meldet seinen
+aktuellen Schritt über das neue `onTourPageChange`-Prop hoch, weil die Topbar in `App.jsx` liegt
+und nur `ConfiguratorTab` weiß, auf welchem Schritt er steht.
+
+**Ersatzlos entfernt (sagten dasselbe wie das Tutorial):**
+- `RecipesTab` — „Add your own meals here — then swap them onto any day in the planner."
+- `InventoryTab` — „What you have on board — checked-off shopping items, minus …"
+- `InfoMapTab` — der Untertitel unter dem Kartentitel (unsichtbar, solange `MAP_ENABLED=false`)
+
+**Verschoben statt gelöscht — die Stop-Notiz der Einkaufslisten.** „🏪 Last big supermarket!
+Woolworths or Coles in Cairns. Buy everything you can." bzw. für Bamaga „Go early! Prices high
+…" ist **Reisewissen, kein Bedien-Hinweis** und steht in keinem Tutorial. Der wegklickbare
+Banner (`DismissibleNote`) ist entfallen, der Text lebt in `S.shopping.notes` weiter und steht
+jetzt als Vorspann oben im ⓘ-Sheet des jeweiligen Stops. Die Seite wird ruhig, die Information
+bleibt. Mit dem Banner entfällt auch der `ui_dismissed_note_<id>`-Zustand.
+
+**Bewusst stehen gelassen — das 🥩-Banner im Menüplan.** Es erklärt, warum an späteren Tagen
+kein Frischfleisch geplant ist. Das ist laut Changelog die häufigste Rückfrage überhaupt, es
+erscheint **nur wenn es zutrifft** (Omnivore + betroffene Tage), ist auf eine Zeile eingeklappt
+und wegklickbar. Ins Sheet verschoben würde es niemand finden, der sich gerade wundert — es
+beantwortet die Frage dort, wo sie entsteht. Vom Entwickler so bestätigt.
+
+**Mit aufgeräumt**, weil sonst toter Code zurückbleibt: `S.recipes.myRecipesEmpty`,
+`S.inventory.intro`, `S.map.subtitle`, `S.shopping.dismissAria` (das gleichnamige
+`S.menuJump.dismissAria` wird weiter von `MenuTab` benutzt und bleibt) sowie die CSS-Regeln
+`.note`/`.note-w`/`.note-s`/`.note-text`/`.note-close`, `.my-recipes-empty`, `.inv-intro`,
+`.map-intro-sub`.
+
+**Neu: `src/components/PageInfoSheet.test.jsx`** — 8 Tests, TDD (erst rot): ⓘ auf jeder
+Trip-Seite, Sheet zeigt die Tutorial-Inhalte der Seite, Inhalt wechselt beim Seitenwechsel,
+`cta` fehlt, die drei entfernten Sätze sind nicht mehr im DOM, die Stop-Notiz ist von der Seite
+ins Sheet gewandert, Sheet schliesst. **463 Tests grün**, Build grün.
+
+---
+
+## 2026-09-22 (ch) — Personen-Icons im Konfigurator (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Generiere über das ChatGPT API die Kopf-Icons in der Trip-Generierung
+für die Personen … im Stil der Icons von den Rezepten … achte darauf dass es generische Köpfe sind
+also nicht einer Rasse zugehörig."
+
+**Neu: `public/people/{adult-m,adult-f,child}.png`** (zusammen 19 KB) und
+`src/components/person-icons.jsx`. `ConfiguratorTab.jsx:121` rendert `<PersonIcon type={t} />`
+statt des Emojis aus `strings.js`.
+
+### Wie „generisch" technisch gelöst ist
+
+Zwei Mittel, beide im Prompt erzwungen — nicht dem Modell überlassen:
+
+1. **Keine Gesichtszüge.** Kopf und Schultern sind eine geschlossene Silhouette. Ohne Augen,
+   Nase und Mund gibt es nichts, woran sich eine Herkunft ablesen liesse.
+2. **Keine Hauttöne.** Die Figuren sind teal, olivgrün und bernstein, das Haar jeweils ein
+   dunklerer Ton derselben Farbe. Eine nicht-wörtliche Farbe liest sich als Zeichen, nicht als
+   Abbildung eines Menschen.
+
+Unterschieden wird über Haar-Silhouette und Proportion (Kind mit proportional grösserem Kopf) —
+die übliche Piktogramm-Sprache. **Die Farben kodieren bewusst nicht Geschlecht:** Teal, Olivgrün
+und Bernstein statt der üblichen Blau-Rosa-Zuordnung.
+
+### Grösse
+
+**28 px statt der 18 px des Emojis.** Die Pille ist mindestens 48 px hoch bei rund 105 px Breite,
+der Platz war da; bei 18 px waren die drei Köpfe kaum auseinanderzuhalten. Beide Grössen im
+nachgebauten Picker verglichen.
+
+Im CSS nur `height` gesetzt, die Breite ergibt sich: Die drei Bilder sind **unterschiedlich breit**
+(langes Haar braucht mehr Platz als kurzes). Eine feste Breite würde sie verzerren oder
+unterschiedlich gross wirken lassen.
+
+### Fallback bleibt
+
+`PersonIcon` kennt genau drei Typen. Ein unbekannter Typ fällt auf das Emoji aus
+`S.config.typeOptions` zurück, statt ein fehlendes Bild anzufordern — die Emoji bleiben deshalb
+in `strings.js` stehen.
+
+**Kosten:** 1275 in / 439 out Token ≈ 2,3 Cent. Gesamtverbrauch der API **30,7 Cent**
+(6,1 % von 5 $). 455 Tests grün, Build grün, Precache 1870 → 1890 KiB.
+
+---
+
+## 2026-09-22 (cg) — Känguru auch im Info-Kopf (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Und jetzt das selbe auf der Info-Seite."
+
+**Geändert:** `AboutTab.jsx:26` — `<div className="about-icon">🦘</div>` wird
+`<div className="about-icon"><KangarooIcon /></div>`, orange Kontur über `currentColor`.
+
+**44 px, nicht 96 px wie auf der Startseite.** Der Kontext ist ein anderer: Hier steht das
+Zeichen NEBEN App-Name (18 px) und Slogan (12 px) in einer Flex-Zeile — es ist Beiwerk, keine
+Illustration. Mit 96 px würde es die Zeile sprengen. Gegenüber dem Emoji (36 px) trotzdem etwas
+grösser, weil eine Kontur weniger optisches Gewicht hat als eine gefüllte Glyphe.
+
+**`flex-shrink: 0` gehört auf den WRAPPER, nicht auf das SVG.** Erster Versuch setzte es auf
+`.about-icon svg` — dort greift es nicht, weil das Flex-Element `.about-icon` ist. Mit langem
+Slogan wäre das Zeichen gequetscht worden. Durchgetestet mit kurzem und langem Slogan.
+
+**Damit hat das Känguru drei Auftritte aus EINER Komponente:**
+
+| Ort | Grösse | Farbe |
+|---|---|---|
+| Topbar (Markenzeichen) | 32 px | weiss auf orange |
+| Leere Startseite (Illustration) | 96 px | orange auf beige |
+| Info-Kopf (Beiwerk) | 44 px | orange auf weiss |
+
+Alle drei über `currentColor` aus dem Kontext eingefärbt — keine zweite Fassung, keine
+Farbdubletten im Code.
+
+**Letztes verbliebenes 🦘:** `strings.js:65`, das Willkommens-Tutorial. Steht dort als Datenfeld
+in einer Slide-Liste, nicht als Markup — die Umstellung wäre kein Einzeiler, sondern bräuchte
+eine Entscheidung, wie Icons in `strings.js` überhaupt referenziert werden sollen. Bewusst
+liegengelassen, der Entwickler hat nur die Info-Seite genannt.
+
+455 Tests grün, Build grün. Keine API-Kosten.
+
+---
+
+## 2026-09-22 (cf) — Känguru auf der leeren Startseite (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Ersetze nun das Icon vom Känguru auf der Seite wenn keine geplanten
+Reisen vorhanden sind mit dem neuen Känguru-Icon, mit oranger Umrandung."
+
+**Geändert:** `HomeTab.jsx:90` — `<div className="home-empty-icon">🦘</div>` wird
+`<div className="home-empty-icon"><KangarooIcon /></div>`. Dazu eine CSS-Regel: orange Kontur
+über `color: var(--or)`, das Icon führt `stroke="currentColor"`.
+
+**96 px statt der 56 px des Emojis.** Eine Konturzeichnung braucht mehr Fläche als eine gefüllte
+Glyphe, um dasselbe optische Gewicht zu haben. Durchgesehen bei 72 / 96 / 120 px im nachgebauten
+Screen: 72 wirkt verloren, ab 120 drängt das Zeichen den Text nach unten.
+
+Die Strichstärke skaliert proportional mit (1 im 24er-Raster → 4 px bei 96 px). Bei einer
+Linienzeichnung ist das richtig — sie soll beim Vergrössern gleich aussehen, nicht dünner werden.
+
+**Damit führt das Känguru zwei Auftritte:** Markenzeichen in der Topbar (32 px, weiss auf orange)
+und Illustration auf der leeren Startseite (96 px, orange auf beige). Dieselbe Komponente, die
+Farbe kommt jeweils aus dem Kontext — genau wofür `currentColor` da ist.
+
+**Noch als Emoji, bewusst nicht angefasst:** `AboutTab.jsx:25` (🦘 im About-Kopf) und
+`strings.js:65` (🦘 im Willkommens-Tutorial). Beide gehören zu anderen Arbeitsblöcken; der
+Entwickler hat ausdrücklich nur die leere Startseite genannt.
+
+455 Tests grün, Build grün. Keine API-Kosten — das Icon existierte bereits.
+
+---
+
+## 2026-09-22 (ce) — Rezept-Icons: Set C eingebaut, 9 → 19 Gruppen (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Entwerfe neue Icons für die Rezepte, sie sollen in kleinere Gruppen
+eingeteilt werden … inkludiere auch mehr Farben … versuche es auch mit 2-3 Icon-Generierungen über
+ChatGPT API." Danach: „Das Recipe Set C gefällt mir am besten, verwende die und generiere noch die
+fehlenden Icons."
+
+### Warum 19 Gruppen jetzt gehen, obwohl ich bei 9 das Gegenteil behauptet habe
+
+Meine damalige Begrenzung auf neun Familien war an eine **Annahme** gebunden, die ich nicht
+ausgesprochen hatte: dass alle Icons ähnlich abstrakte Silhouetten sind und die FARBE die
+Unterscheidung allein tragen muss. Unter der Annahme stimmte es — die warme Palette der App gibt
+keine 17 klar trennbaren Töne her.
+
+Die API-Sets zeigten den Ausweg: Sobald jede Gruppe ein eigenes OBJEKT bekommt (Steak, Keule,
+Wurst, Fisch statt viermal „irgendwas Fleischiges"), trägt die FORM die Identität und die Farbe
+muss nur noch unterstützen. **Merksatz: Die Zahl möglicher Gruppen hängt nicht an der Palette,
+sondern daran, ob die Formen eigenständig sind.**
+
+Neu aufgeteilt: Fleisch → meat/poultry/cured · Ei+Milch → egg/dairy · Gemüse → veg/salad ·
+grain → pasta/rice/bread · Obst+Süsses → fruit/sweet · other → dining/leftovers/drinks.
+19 Familien, alle 45 Emoji aus `recipes.js` abgedeckt (per Test geprüft).
+
+### Neues Werkzeug: `png-codec.mjs` + `cut-set.mjs` (Scratchpad)
+
+Um die 16 Icons aus dem 4×4-Raster zu lösen, brauchte es einen **PNG-Encoder** — der Decoder
+existierte seit dem Känguru, geschrieben wurde er jetzt (IHDR/IDAT/IEND, `zlib.deflateSync` +
+`zlib.crc32`, Filter 0). Vor dem Einsatz an acht Fällen selbstgetestet: Rundlauf mit synthetischen
+Daten, Rundlauf über eine fremd erzeugte Datei, crop, resize, Alpha-Bounds.
+
+**Freistellen per FLUTFÜLLUNG VOM RAND, nicht per Farbschwelle.** Eine Schwelle („alles Cremefarbene
+wird transparent") frisst helle Stellen IM Icon weg. Die Flutfüllung entfernt nur, was vom Bildrand
+aus zusammenhängend erreichbar ist.
+
+**Zwei Fehlschläge, die das trotzdem nicht auffing** — und die Lehre daraus:
+- Das Spiegelei aus Set C hatte ein Eiweiss in fast exakt der Hintergrundfarbe (Abstand ~10 bei
+  Toleranz 26). Es war vom Rand aus erreichbar und verschwand; übrig blieb der Dotter.
+- Becher und Vorratsbehälter aus der ersten Nachlieferung hatten cremefarbene Körper mit nicht
+  vollständig umschliessender Kontur — dieselbe Ursache.
+
+**Regel:** Ein Icon, das freigestellt werden soll, darf keine Fläche in Hintergrundfarbe haben,
+die den Rand berührt. Beim Nachgenerieren deshalb ausdrücklich gefordert: „kein Teil darf cremefarben
+oder weiss sein". Danach sassen alle drei (brauner Ei-Schale, teal Becher, grüner Behälter).
+Geprüft wurde nicht nach Augenmass, sondern über die Deckkraft im mittleren Bilddrittel.
+
+### Eingebaut
+
+- **`public/food/*.png`** — 19 Icons, 96 px längste Kante, zusammen **236 KB**. 96 px deckt 3× für
+  die grösste Anzeige (28 px) ab; die Zielgeräte haben devicePixelRatio 3.
+- **`data/food-families.js`** — 19 Familien. Die `color`-Werte sind **aus den Bildern gemessen**
+  (häufigste Farbe, auf 5 Bit je Kanal quantisiert, Extremwerte ausgenommen), nicht geschätzt.
+  Beim ersten Versuch hatte ich zwei Familien dieselbe Farbe gegeben — der bestehende Test
+  „keine zwei Familien teilen sich eine Farbe" hat es gefangen.
+- **`components/food-icons.jsx`** — rendert `<img>` statt SVG. `FOOD_ICONS_ENABLED` bleibt.
+- **`App.css`** — `object-fit: contain` im quadratischen Rahmen. Die Icons haben
+  UNTERSCHIEDLICHE Seitenverhältnisse (Fisch breit, Karotte hoch); ohne das würden sie gequetscht.
+
+### Preis dieser Entscheidung
+
+Rasterbilder statt Vektoren: **+194 KB im Offline-Bundle** (Precache 1677 → 1870 KiB, +12 %),
+nicht umfärbbar, nicht beliebig skalierbar. Dafür der mehrfarbige, handgezeichnete Stil, den eine
+einfarbige Kontur nicht wiedergeben kann. Bewusste Wahl des Entwicklers.
+
+**Weiterhin offen:** Die Familie wird aus dem Emoji des Rezeptautors abgeleitet und erbt dessen
+Unschärfe. „Sardines on toast" trägt 🥫 und landet bei *Pantry & nuts* statt bei *Fish* — mit 19
+Gruppen näher dran als vorher, aber immer noch falsch. Fix wäre `RECIPE_FAMILY_OVERRIDE`.
+
+**API-Kosten:** 4 Generierungen dieser Runde ≈ 13,0 Cent. Gesamtverbrauch seit Beginn **28,4 Cent**
+(5,7 % von 5 $). 455 Tests grün (25 Dateien), Build grün.
+
+---
+
+## 2026-09-22 (cd) — App heisst „Cape York Planner" (Branch `fresh-start`)
+
+**Anlass (der Entwickler):** „Benenne das App überall von Cape York 2026 zu Cape York Planner um,
+mir ist es beim Download der App vom Web zum Homescreen noch aufgefallen, aber identifiziere
+selbstständig den Rest."
+
+**Wichtige Richtigstellung zum Anlass:** „Cape York 2026" stand zum Zeitpunkt der Meldung **nicht
+mehr im Code** — (bt) hatte es tags zuvor auf „Cape York" umgestellt. Was der Entwickler auf dem
+Homescreen sah, war die **deployte Fassung auf `main`**; der ganze Strang hier liegt auf
+`fresh-start` und ist nicht gemerged. Der neue Name wird also erst nach einem Deploy sichtbar.
+Dazu kommt: **eine bereits installierte PWA übernimmt einen geänderten Manifest-Namen nicht.**
+Chrome friert `name`/`short_name` beim Installieren ein; die Verknüpfung muss entfernt und neu
+angelegt werden. Beides steht so in der RELEASE-CHECKLIST-Notiz unten.
+
+**Trennlinie der Umbenennung — App-Name vs. Region.** „Cape York" kommt 20× in user-sichtbaren
+Strings vor, aber meist als *Region*, nicht als Produktname. Umbenannt wurde nur, wo die App sich
+selbst benennt:
+
+| Datei | Stelle | Wirkung |
+|---|---|---|
+| `vite.config.js` | Manifest `short_name` | **Homescreen-Name auf Android** — der gemeldete Fall |
+| `vite.config.js` | Manifest `name` | Installations-Dialog, App-Liste |
+| `index.html` | `apple-mobile-web-app-title` | Homescreen-Name auf iOS |
+| `index.html` | `<title>` | Browser-Tab |
+| `strings.js` | `S.app.title` | Topbar auf Home |
+| `strings.js` | `S.about.appName` | About-Seite |
+| `strings.js` | `S.premium.infoTitle` | „Cape York Planner Premium" (Tier-Name) |
+| `PRIVACY.md` | Überschrift + 2× Fliesstext | Policy-Seite |
+| `scripts/build-privacy.mjs` | `<title>` | Browser-Tab der Policy |
+| `CLAUDE.md`, `PRODUCT.md` | H1 (trugen noch „2026") | Dev-Docs |
+
+**Unverändert gelassen, weil dort die Halbinsel gemeint ist, nicht die App:** „Your Cape York
+trips", „Plan your Cape York trip", „Welcome to Cape York", `tripDefaultName: 'Cape York Trip'`,
+`tripNamePlaceholder`, „Cape York Map", die Manifest-`description` („Cape York 4WD camping
+planner…"), die About-Tagline, der Share-Betreff und „Cape York, here we come!". Ebenso
+`PRIVACY.md` Zeile 87 („Cape York has limited mobile coverage") und `package.json` `name:
+"capeyork-app"` (interner Paket-Identifier, nicht user-sichtbar).
+
+**Offener Punkt, bewusst nicht eigenmächtig entschieden:** `short_name` ist mit „Cape York
+Planner" **17 Zeichen** lang. Android kürzt Homescreen-Labels je nach Launcher bei ~12–15
+Zeichen — es kann also „Cape York Pla…" dastehen. Genau dafür ist `short_name` gedacht (kurz),
+aber der Entwickler hat den Namen ausdrücklich für den Homescreen verlangt. Umgesetzt wie
+gewünscht, Kürzung gemeldet; Alternative wäre `short_name: 'CY Planner'` bei vollem `name`.
+
+**Verifiziert an den gebauten Artefakten**, nicht nur am Quelltext: `dist/manifest.webmanifest`
+→ `"name":"Cape York Planner","short_name":"Cape York Planner"`, `dist/index.html` → `<title>`
+und `apple-mobile-web-app-title`, `public/privacy.html` → Policy-Titel.
+
+**Tests: 454 von 455 grün, Build grün.** Der eine Fehlschlag ist **`src/data/food-families.test.js`
+(„keine zwei Familien teilen sich eine Farbe", 17 statt 19 eindeutige Farben)** und gehört **nicht
+zu dieser Änderung** — die Datei wurde von dieser Session nie angefasst; der parallel arbeitende
+Agent editierte sie im selben Moment (mtime 90 s alt, Einträge (cc)/Food-Icons). Bewusst nicht
+angefasst, damit wir uns nicht überschreiben — gehört in seinen Strang.
+
+---
+
 ## 2026-09-22 (cc) — Fortschritts-Auto freigestellt: Farben per API invertiert (Branch `fresh-start`)
 
 **Anlass (der Entwickler):** „Invertiere das Auto-Bild über die API und ChatGPT ausdrücklich nicht

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { KangarooIcon } from './icons.jsx'
 import { S } from '../strings.js'
 import { resetAllIntros } from '../hooks/useStorage.js'
 
@@ -22,7 +23,7 @@ export default function AboutTab() {
     <div className="about-wrap">
       <div className="about-card">
         <div className="about-app">
-          <div className="about-icon">🦘</div>
+          <div className="about-icon"><KangarooIcon /></div>
           <div className="about-app-text">
             <div className="about-app-name">{S.about.appName}</div>
             <div className="about-app-tagline">{S.about.tagline}</div>

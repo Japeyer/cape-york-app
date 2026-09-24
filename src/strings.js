@@ -4,7 +4,7 @@
 
 export const S = {
   app: {
-    title: 'Cape York',
+    title: 'Cape York Planner',
     titleNewTrip: 'New trip',
     titleEditing: 'Edit trip',
     subEditing: 'Tap "Update plan" to save changes',
@@ -12,7 +12,8 @@ export const S = {
     // hinter dem Shopping-Eintrag (ShopStopSheet). Ihre Namen kommen weiterhin
     // aus REGION.supplyPoints[*].name (regions.js).
     tabs: {
-      menu: 'Menu',
+      // Schlüssel bleibt `menu` (= Tab-/View-ID in App.jsx), nur das Label heisst „Plan".
+      menu: 'Plan',
       recipes: 'Recipes',
       shopping: 'Shopping',
       map: 'Map',
@@ -77,9 +78,17 @@ export const S = {
     ],
   },
 
+  // Sheet hinter dem ⓘ oben rechts. Die Inhalte kommen aus `tours` unten — hier stehen
+  // nur Rahmen-Texte. Die früheren Einführungssätze auf den Seiten sind entfallen.
+  info: {
+    title: 'What you can do here',
+    empty: 'Nothing to explain on this page.',
+  },
+
   // ── Seiten-Tutorials (Spotlight-Tipps) ──
   // Struktur/Selektoren stehen in `lib/tours.js`; hier nur die Texte, gekeyt nach
   // `S.tours[page][step.key]`. `cta` = die Aktion, die den Schritt abschließt.
+  // Dieselben Texte speisen das ⓘ-Sheet (PageInfoSheet) — dort ohne `cta`.
   tours: {
     ui: {
       skip: 'Skip tips',
@@ -470,7 +479,6 @@ export const S = {
       `${count} more ${count === 1 ? 'recipe' : 'recipes'} with Premium`,
     // Eigene Rezepte (Editor + Bibliothek)
     myRecipesLabel: '👨‍🍳 My recipes',
-    myRecipesEmpty: 'Add your own meals here — then swap them onto any day in the planner.',
     newRecipeCta: 'New recipe',
     deleteConfirm: ({ name }) => `Delete your recipe "${name}"? It will be removed from any day it's on.`,
     editor: {
@@ -504,7 +512,7 @@ export const S = {
     unlockAria: 'Premium feature — tap for details',
 
     // Premium-Info-Seite
-    infoTitle: 'Cape York Premium',
+    infoTitle: 'Cape York Planner Premium',
     infoLead: 'The free version lets you preview your Cape York trip — the first 5 days, Cairns shopping, and a basic menu. Premium unlocks the full plan.',
     featuresHeading: 'What you get with Premium',
     featuresList: [
@@ -540,7 +548,6 @@ export const S = {
   map: {
     // InfoMapTab — interaktive Cape-York-Karte mit Layer-Toggles.
     title: 'Cape York Map',
-    subtitle: 'Tap a marker for details. Toggle the layers below to show or hide what matters to you.',
     layersHeading: 'Show on map',
     unnamedPoi: 'Point of interest',
     attribution: 'Data © OpenStreetMap contributors (ODbL) + curated Cape York references. Schematic — distances and shapes are approximate.',
@@ -548,7 +555,7 @@ export const S = {
   },
 
   about: {
-    appName: 'Cape York',
+    appName: 'Cape York Planner',
     tagline: 'Trip planner for Cape York 4WD camping — menu, recipes, shopping list.',
 
     privacyHeading: 'Your data',
@@ -566,7 +573,6 @@ export const S = {
   },
 
   inventory: {
-    intro: 'What you have on board — checked-off shopping items, minus what your cooked meals used up.',
     emptyTitle: 'Nothing in stock yet',
     emptySub: 'Tick items off on your shopping lists as you buy them — they show up here, and shrink as you mark meals cooked.',
     usedUp: ({ n }) => `Used up (${n})`,
@@ -600,7 +606,6 @@ export const S = {
     },
     hideChecked: ({ count }) => `👁 Hide ${count} checked`,
     showChecked: ({ count }) => `👁 Show ${count} checked`,
-    dismissAria: 'Dismiss this note',
     actions: {
       reset: 'Reset',
       checkAll: 'Check all ✓',

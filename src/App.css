@@ -101,7 +101,22 @@
   gap: 12px;
   margin-bottom: 16px;
 }
-.about-icon { font-size: 36px; line-height: 1; }
+/* Känguru im Info-Kopf (components/icons.jsx). Ersetzt das frühere 🦘-Emoji.
+   Orange Kontur über `currentColor` — dieselbe Komponente wie in Topbar und
+   leerer Startseite, nur ein anderer Kontext.
+
+   44px statt der 36px des Emojis, aber kleiner als die 96px der Startseite: Hier
+   steht das Zeichen NEBEN App-Name (18px) und Slogan (12px), es ist Beiwerk und
+   keine Illustration. Bei 96px würde es die Zeile sprengen.
+
+   `flex-shrink: 0` auf dem WRAPPER (dem Flex-Element in .about-app), nicht auf dem
+   SVG — sonst greift es nicht und das Zeichen wird bei langem Slogan gequetscht. */
+.about-icon { line-height: 1; flex-shrink: 0; }
+.about-icon svg {
+  display: block;
+  width: 44px; height: 44px;
+  color: var(--or);
+}
 .about-app-text { flex: 1; min-width: 0; }
 .about-app-name {
   font-size: 18px; font-weight: 700;
@@ -319,6 +334,19 @@
   font-size: 56px;
   line-height: 1;
 }
+/* Känguru auf der leeren Startseite (components/icons.jsx). Ersetzt das frühere
+   🦘-Emoji. Orange Kontur auf beigem Grund — `currentColor` holt die Farbe von hier.
+
+   96px statt der 56px des Emojis: Eine Konturzeichnung braucht mehr Fläche als eine
+   gefüllte Glyphe, um dasselbe optische Gewicht zu haben. Die Strichstärke skaliert
+   proportional mit (1 im 24er-Raster → 4px bei 96px), das ist bei einer
+   Linienzeichnung richtig so. */
+.home-empty-icon svg {
+  display: block;
+  width: 96px; height: 96px;
+  margin: 0 auto;
+  color: var(--or);
+}
 .home-empty-title {
   font-size: 22px;
   font-weight: 700;
@@ -344,6 +372,27 @@
   box-shadow: 0 2px 6px rgba(192, 96, 12, .25);
 }
 .home-create-btn:active { background: #A85209; }
+
+/* ── Seiten-Info hinter dem ⓘ (PageInfoSheet) ──
+   Ersetzt die Einführungssätze, die früher oben auf jeder Seite standen. */
+.info-note {
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  background: var(--tok-bg);
+  color: var(--tx);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.info-item { padding: 12px 0; border-bottom: 1px solid var(--card-line); }
+.info-item:last-child { border-bottom: none; }
+.info-item-title {
+  font-size: 14px; font-weight: 700;
+  color: var(--tx);
+  margin-bottom: 3px;
+}
+.info-item-body { font-size: 13px; color: var(--tx2); line-height: 1.45; }
+.info-empty { font-size: 13px; color: var(--tx3); padding: 8px 0; }
 
 /* ── Bottom nav ── */
 .bottom-nav {
@@ -633,6 +682,14 @@
 .meal-kcal { font-size: 12px; color: var(--tx2); margin-top: 2px; }
 .meal-rest { color: var(--rd); font-weight: 600; }
 .meal-skip { color: var(--tx2); font-style: italic; }
+/* Fahrzeug-Icon statt 🚙 auf den Pickup-/Dropoff-Zeilen. `vertical-align` setzt es auf
+   die Schriftlinie der kursiven Zeile daneben; Breite folgt dem 104×82-Seitenverhältnis. */
+.meal-skip-car {
+  height: 18px;
+  width: auto;
+  vertical-align: -4px;
+  margin-right: 6px;
+}
 
 /* ── Premium Gate ── */
 .premium-gate {
@@ -912,12 +969,6 @@
   font-weight: 700;
   color: var(--map-text);
   margin: 0 0 4px;
-}
-.map-intro-sub {
-  font-size: 12px;
-  color: var(--tx2);
-  line-height: 1.4;
-  margin: 0;
 }
 .map-canvas-wrap {
   width: 100%;
@@ -1416,38 +1467,6 @@
 }
 
 /* ── Shopping ── */
-.note {
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin: 8px 12px;
-  font-size: 14px; line-height: 1.5;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-.note-w { background: #FEF3CD; color: #7A5500; }
-.note-s { background: #D4EDDA; color: #1A5C30; }
-.note-text { flex: 1; }
-.note-close {
-  background: transparent;
-  border: none;
-  color: inherit;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  margin: -6px -8px -6px 0;
-  border-radius: 6px;
-  opacity: .55;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.note-close:active { background: rgba(0,0,0,.1); opacity: 1; }
-
 .progress-card {
   background: var(--wh);
   border-radius: var(--radius);
@@ -2269,13 +2288,15 @@ button.cfg-calendar-tip:active { background: #FBE3CF; }
   bottom: 1px; right: 2px;
   font-size: 9px;
 }
-/* Lebensmittel-Icons (components/food-icons.jsx) sind gefüllte SVGs und tragen ihre
-   Farbe selbst — die Familienfarbe IST die Information. Hier nur Layout, keine Farbe.
-   `display: block` verhindert die Grundlinien-Lücke, die inline-SVGs sonst erzeugen. */
-.recipe-icon svg,
-.swap-card-icon svg,
-.cal-day-icon svg { display: block; }
-.cal-day-icon svg { margin-bottom: -1px; }
+/* Lebensmittel-Icons (components/food-icons.jsx) sind mehrfarbige Bilder.
+   Sie haben UNTERSCHIEDLICHE Seitenverhältnisse — der Fisch ist breit, die Karotte
+   hoch. `object-fit: contain` im quadratischen Rahmen erhält die Proportionen;
+   ohne das würde jedes Icon auf Quadrat gequetscht.
+   `display: block` verhindert die Grundlinien-Lücke unter dem Bild. */
+.recipe-icon img,
+.swap-card-icon img,
+.cal-day-icon img { display: block; object-fit: contain; }
+.cal-day-icon img { margin-bottom: -1px; }
 
 
 /* ── Bottom Sheet (DaySheet, SwapSheet) ── */
@@ -2865,7 +2886,6 @@ button.cfg-calendar-tip:active { background: #FBE3CF; }
 
 /* "My recipes"-Sektion im Recipes-Tab */
 .my-recipes { padding: 0 12px 8px; }
-.my-recipes-empty { font-size: 13px; color: var(--tx2); line-height: 1.5; padding: 4px 2px 10px; }
 .my-recipe { margin-bottom: 10px; }
 .my-recipe-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 .my-recipe-edit, .my-recipe-del {
@@ -2884,11 +2904,6 @@ button.cfg-calendar-tip:active { background: #FBE3CF; }
 
 /* ── Inventory / Stock-Tab ── */
 .inv-wrap { padding: 12px 12px 24px; }
-.inv-intro {
-  font-size: 13px; color: var(--tx2); line-height: 1.5;
-  background: var(--wh); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
-}
 .inv-cat { margin-bottom: 14px; }
 .inv-cat-hd {
   font-size: 12px; font-weight: 700; color: var(--tx2); text-transform: uppercase;
@@ -3095,6 +3110,18 @@ button.cfg-calendar-tip:active { background: #FBE3CF; }
   background: #FEF0E6;
 }
 .person-pill-icon { font-size: 18px; line-height: 1; }
+/* Personen-Icons (components/person-icons.jsx) sind mehrfarbige Bilder, keine Glyphen.
+   28px statt der 18px des Emojis: Die Pille ist mindestens 48px hoch bei rund 105px
+   Breite, der Platz war da. Bei 18px waren die drei Köpfe kaum auseinanderzuhalten.
+
+   Nur `height` gesetzt, die Breite ergibt sich: Die drei Bilder sind unterschiedlich
+   breit (langes Haar braucht mehr Platz als kurzes). Eine feste Breite würde sie
+   verzerren oder unterschiedlich gross wirken lassen. */
+.person-pill-icon img {
+  display: block;
+  height: 28px;
+  width: auto;
+}
 .person-pill-label {
   font-size: 12px; font-weight: 600;
   color: var(--tx);

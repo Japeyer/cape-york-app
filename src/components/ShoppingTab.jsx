@@ -67,29 +67,10 @@ function newAddedId() {
   return 'u-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 }
 
-// Dismissible Stop-Note ("🏪 Last big supermarket! …" / "🌿 Small store in Bamaga …").
-// Pro Bucket persistent unter `ui_dismissed_note_<spId>` — User kann die Hint pro Stop
-// einmal wegklicken. `ui_`-Prefix wird vom resetAllShoppingState-Wipe nicht erfasst
-// (UI-Pref, nicht Trip-State).
-function DismissibleNote({ supplyPoint }) {
-  const KEY = `ui_dismissed_note_${supplyPoint.id}`
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(KEY) === 'true' } catch { return false }
-  })
-  if (dismissed) return null
-  const dismiss = () => {
-    setDismissed(true)
-    try { localStorage.setItem(KEY, 'true') } catch {}
-  }
-  const isStart = supplyPoint.role === 'start'
-  const text = S.shopping.notes[supplyPoint.id] || `${supplyPoint.name} resupply list`
-  return (
-    <div className={`note ${isStart ? 'note-w' : 'note-s'}`}>
-      <span className="note-text">{text}</span>
-      <button className="note-close" onClick={dismiss} aria-label={S.shopping.dismissAria}>✕</button>
-    </div>
-  )
-}
+// Die Stop-Notiz ("🏪 Last big supermarket! …") stand früher als wegklickbarer Banner
+// oben auf der Liste. Sie ist Reisewissen, kein Bedien-Hinweis, und steht deshalb jetzt
+// im ⓘ-Sheet der Seite (siehe PageInfoSheet) — der Text selbst lebt weiter in
+// S.shopping.notes, nur die Banner-Komponente ist entfallen.
 
 // Fallback-Sheet wenn Web-Share-API nicht verfügbar ist (Desktop-Browser).
 // Bietet drei Channels: WhatsApp-Link (öffnet App/Web), mailto-Link, Clipboard-Copy.
@@ -304,7 +285,6 @@ export default function ShoppingTab({ supplyPoint, data, plan, onOpenRecipe, loc
     const remaining = Math.max(0, itemCount - preview.length)
     return (
       <div className="locked-shop-wrap">
-        <DismissibleNote supplyPoint={supplyPoint} />
         <div className="locked-shop-intro">
           {S.shopping.lockedIntro({ name: supplyPoint.name, count: itemCount })}
         </div>
@@ -462,7 +442,6 @@ export default function ShoppingTab({ supplyPoint, data, plan, onOpenRecipe, loc
   if (total === 0 && visibleOrphans.length === 0 && hiddenItems.length === 0) {
     return (
       <div style={{ paddingTop: 8 }}>
-        <DismissibleNote supplyPoint={supplyPoint} />
         <div className="empty-state">{S.shopping.empty}</div>
       </div>
     )
@@ -470,7 +449,6 @@ export default function ShoppingTab({ supplyPoint, data, plan, onOpenRecipe, loc
 
   return (
     <div style={{ paddingTop: 8 }}>
-      <DismissibleNote supplyPoint={supplyPoint} />
 
       <div className="progress-card">
         <div className="progress-row">

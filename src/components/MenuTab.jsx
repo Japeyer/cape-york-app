@@ -90,6 +90,14 @@ function ClusterInfoBanner({ clusterDays, fridgeSize, totalDays, meatDays, hasBa
   )
 }
 
+// Fahrzeug-Icon der Pickup-/Dropoff-Zeilen (ersetzt das frühere 🚙-Emoji).
+// Dieselbe Datei, die die Wizard-Fortschrittsleiste fährt — der 4WD mit Dachzelt aus
+// `generated-images/car-orange.png`, dort bereits freigestellt und auf 104×82 skaliert.
+// Das 1024er-Original bewusst NICHT eingebunden: 845 KB wären in einer Offline-PWA
+// unvertretbar, und bei 18 px Anzeigehöhe bringt die Auflösung nichts.
+// Über BASE_URL, nicht als absoluter Pfad — die App läuft unter /cape-york-app/.
+const CAR_SRC = `${import.meta.env.BASE_URL}wizard-car.png`
+
 function MealRow({ label, meal, dayNum, slot, onRecipeClick, onSwap, onMark }) {
   if (!meal) return null
   if (meal.skip) {
@@ -102,7 +110,10 @@ function MealRow({ label, meal, dayNum, slot, onRecipeClick, onSwap, onMark }) {
     return (
       <div className="meal-row">
         <div className="meal-lbl">{label}</div>
-        <div className="meal-text meal-skip">🚙 {text}</div>
+        <div className="meal-text meal-skip">
+          <img className="meal-skip-car" src={CAR_SRC} alt="" width="23" height="18" draggable="false" />
+          {text}
+        </div>
       </div>
     )
   }

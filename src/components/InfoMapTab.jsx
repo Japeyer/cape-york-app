@@ -37,7 +37,7 @@ export default function InfoMapTab({ premium, onUpgrade, tripConfig }) {
     <div className="map-tab-wrap">
       <div className="map-intro">
         <h2 className="map-intro-title">{S.map.title}</h2>
-        <p className="map-intro-sub">{S.map.subtitle}</p>
+        {/* Untertitel entfallen — Erklärungen stehen hinter dem ⓘ oben rechts. */}
       </div>
 
       <div className="map-canvas-wrap">

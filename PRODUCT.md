@@ -1,4 +1,4 @@
-# Product — Cape York 2026
+# Product — Cape York Planner
 
 > Produkt-Brief: **wofür** die App existiert und für **wen**.
 > Tech-Brief und Coding-Regeln stehen in `CLAUDE.md`, Status in `STATUS.md`.

@@ -153,7 +153,7 @@ export default function InventoryTab({ plan, shopping, factor }) {
 
   return (
     <div className="inv-wrap">
-      <div className="inv-intro">{S.inventory.intro}</div>
+      {/* Einführungssatz entfallen — steht jetzt hinter dem ⓘ oben rechts. */}
 
       {categories.map(({ cat, items }) => (
         <div key={cat} className="inv-cat">

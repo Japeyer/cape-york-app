@@ -10,6 +10,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '../App.jsx'
 import { markTourSeen } from '../hooks/useStorage.js'
+import { S } from '../strings.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
@@ -74,7 +75,11 @@ describe('Bottom-Nav — Versorgungspunkte gebündelt hinter einem Shopping-Eint
   it('zeigt vier Einträge in der Reihenfolge Menu · Recipes · Shopping · Stock', () => {
     seedTrip({ bamagaStop: true, enabledStops: { cooktown: true, coen: true } })
     openTrip()
-    expect(navLabels()).toEqual(['Menu', 'Recipes', 'Shopping', 'Stock'])
+    // Über S.app.tabs statt fester Strings — eine Label-Umbenennung soll diesen Test
+    // nicht brechen; geprüft wird die Reihenfolge, nicht die Wortwahl.
+    expect(navLabels()).toEqual([
+      S.app.tabs.menu, S.app.tabs.recipes, S.app.tabs.shopping, S.app.tabs.inventory,
+    ])
   })
 
   it('listet im Popup genau die aktivierten Stops in Reise-Reihenfolge', () => {

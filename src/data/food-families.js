@@ -1,61 +1,86 @@
-// Lebensmittel-Familien für die Rezept-Icons (Ebene 2 des Icon-Systems).
+// Lebensmittel-Familien für die Rezept-Icons.
 //
-// HINTERGRUND — warum Familien statt Gerichte:
-// Die 97 Rezepte führen 45 verschiedene Emoji, 23 davon genau einmal. 45 monochrome
-// Formen wären bei 24 px nicht auseinanderzuhalten: Nudeln, Curry und Suppe sind
-// dreimal dieselbe Schüssel. Auf der Rezeptkarte steht ohnehin der Name daneben —
-// das Icon muss nicht identifizieren, nur einordnen. Neun Familien reichen dafür.
+// ── 19 GRUPPEN, VORHER 9 ─────────────────────────────────────────────────────
+// Die 9er-Fassung war durch die Farbe begrenzt: Alle Icons waren ähnlich abstrakte
+// Silhouetten, also musste die FARBE die Unterscheidung allein tragen — und die warme
+// Palette der App gibt keine 17 klar trennbaren Töne her.
 //
-// WARUM NEUN: Die Unterscheidung trägt hier die FARBE, nicht die Form (bei kleinen
-// Grössen löst das Auge Farbmasse vor Silhouette vor Detail auf). Die Palette der App
-// ist warm — Rotbraun, Ocker, Sand, Orange liegen dicht beieinander. Mehr als neun
-// Töne lassen sich darin nicht sicher trennen. Jede zusätzliche Familie hätte die
-// bestehenden unschärfer gemacht.
+// Mit den neuen Icons trägt die FORM die Identität: Steak, Keule, Wurst und Fisch sind
+// vier verschiedene Objekte, nicht viermal „irgendwas Fleischiges". Damit ist die Farbe
+// nur noch Unterstützung und die Gruppen dürfen feiner werden.
 //
-// FARBHERKUNFT: Dieselbe Logik, die `cape-york-pois.js` schon fährt (dort acht
-// Kartenkategorien mit je einer Farbe). Blau #3E7AA9, Grün #5C8A4F, Braun #8B5E3C und
-// Orange #C0600C sind von dort bzw. aus den CSS-Variablen übernommen.
+// ── HERKUNFT DER ICONS ───────────────────────────────────────────────────────
+// `public/food/*.png` — erzeugt über die OpenAI-Images-API (siehe CHANGELOG), aus dem
+// 4×4-Raster freigestellt und auf 96 px skaliert. KEINE Vektoren: der Entwickler hat
+// diesen mehrfarbigen, handgezeichneten Stil ausdrücklich gewählt, und den kann eine
+// Kontur-Zeichnung nicht wiedergeben.
 //
-// DATEN BLEIBEN UNANGETASTET: `recipes.js` führt weiter Emoji. Die Zuordnung passiert
-// hier per Lookup. Dadurch ist die Umstellung ohne Datenmigration reversibel und
-// nutzer-eigene Rezepte (Emoji-Freitextfeld im Editor) laufen automatisch in den
-// Fallback, statt zu brechen.
+// ── DATEN BLEIBEN UNANGETASTET ───────────────────────────────────────────────
+// `recipes.js` führt weiter Emoji. Die Familie kommt aus dem Lookup hier. Dadurch ist
+// die Umstellung ohne Datenmigration reversibel, und nutzereigene Rezepte (Emoji-
+// Freitextfeld im Editor) fallen automatisch auf ihr Emoji zurück statt zu brechen.
 
+// `color` wird nicht mehr zum Einfärben gebraucht — die Icons sind mehrfarbige Bilder.
+// Sie steht als REPRÄSENTATIVE Farbe der Gruppe für Stellen, an denen kein Bild passt
+// (etwa ein Punkt-Marker) und dokumentiert zugleich die Palette.
+//
+// Die Werte sind AUS DEN BILDERN GEMESSEN, nicht geschätzt: häufigste Farbe je Icon,
+// auf 5 Bit je Kanal quantisiert, sehr helle und sehr dunkle Pixel ausgenommen.
+// Wer ein Icon austauscht, sollte den Wert neu messen statt ihn zu raten.
 export const FOOD_FAMILIES = {
-  meat:   { label: 'Meat',            color: '#A8452B' },
-  fish:   { label: 'Fish & seafood',  color: '#3E7AA9' },
-  egg:    { label: 'Egg & dairy',     color: '#D99A2B' },
-  veg:    { label: 'Vegetables',      color: '#5C8A4F' },
-  grain:  { label: 'Grains & bread',  color: '#C9A464' },
-  soup:   { label: 'Soup & stew',     color: '#C0600C' },
-  spice:  { label: 'Spicy',           color: '#C0392B' },
-  fruit:  { label: 'Fruit & sweet',   color: '#D4663D' },
-  other:  { label: 'Other',           color: '#7C7269' },
+  meat:      { label: 'Red meat',        color: '#BB2921' },
+  poultry:   { label: 'Poultry',         color: '#C46C0A' },
+  cured:     { label: 'Cured & BBQ',     color: '#B42C1E' },
+  fish:      { label: 'Fish & seafood',  color: '#2973AE' },
+  egg:       { label: 'Eggs',            color: '#B96022' },
+  dairy:     { label: 'Cheese & dairy',  color: '#FEBD26' },
+  veg:       { label: 'Vegetables',      color: '#FE7609' },
+  salad:     { label: 'Salad & greens',  color: '#416F34' },
+  pasta:     { label: 'Pasta',           color: '#2A72AD' },
+  rice:      { label: 'Rice & grains',   color: '#7E4989' },
+  bread:     { label: 'Bread & wraps',   color: '#BA6623' },
+  soup:      { label: 'Soup & stew',     color: '#F67B8E' },
+  spice:     { label: 'Spicy',           color: '#D12422' },
+  fruit:     { label: 'Fruit',           color: '#D22624' },
+  sweet:     { label: 'Sweet',           color: '#C37D3D' },
+  pantry:    { label: 'Pantry & nuts',   color: '#69296C' },
+  dining:    { label: 'Eating out',      color: '#2675B9' },
+  leftovers: { label: 'Leftovers',       color: '#1D69BD' },
+  drinks:    { label: 'Drinks',          color: '#06828A' },
 }
 
-// Emoji → Familie. Deckt alle 45 in recipes.js vorkommenden Emoji ab; die Vollständigkeit
-// prüft ein Test, damit ein neues Rezept mit unbekanntem Emoji nicht stumm im Fallback landet.
+// Emoji → Familie. Deckt alle 45 in recipes.js vorkommenden Emoji ab; die
+// Vollständigkeit prüft ein Test, damit ein neues Rezept mit unbekanntem Emoji nicht
+// stumm im Fallback landet.
 export const EMOJI_FAMILY = {
-  // meat (13 Rezepte)
-  '🥩': 'meat', '🍗': 'meat', '🍖': 'meat', '🥓': 'meat', '🌭': 'meat', '🍔': 'meat',
-  // fish (4)
+  // Fleisch, feiner aufgeteilt als in der 9er-Fassung
+  '🥩': 'meat', '🍖': 'meat', '🍔': 'meat',
+  '🍗': 'poultry',
+  '🥓': 'cured', '🌭': 'cured',
+  // Fisch
   '🐟': 'fish', '🍣': 'fish',
-  // egg & dairy (7)
-  '🥚': 'egg', '🍳': 'egg', '🧀': 'egg',
-  // vegetables — inkl. Salat und Wurzelgemüse (21)
-  '🍆': 'veg', '🍅': 'veg', '🍄': 'veg', '🎃': 'veg', '🌽': 'veg', '🥑': 'veg',
-  '🫒': 'veg', '🥗': 'veg', '🌱': 'veg', '🍠': 'veg',
-  // grains & bread — Pasta, Reis, Wraps, Sandwiches (28, die grösste Familie)
-  '🍝': 'grain', '🍚': 'grain', '🍛': 'grain', '🌯': 'grain', '🌮': 'grain',
-  '🥙': 'grain', '🥪': 'grain', '🥞': 'grain', '🥟': 'grain',
-  // soup & stew (6)
+  // Ei und Milchprodukt getrennt — vorher eine Gruppe
+  '🥚': 'egg', '🍳': 'egg',
+  '🧀': 'dairy',
+  // Gemüse und Blattsalat getrennt
+  '🍆': 'veg', '🍅': 'veg', '🍄': 'veg', '🎃': 'veg', '🌽': 'veg', '🍠': 'veg',
+  '🥗': 'salad', '🌱': 'salad', '🥑': 'salad', '🫒': 'salad',
+  // Beilagen: vorher alles „grain", jetzt drei Gruppen
+  '🍝': 'pasta',
+  '🍚': 'rice', '🍛': 'rice',
+  '🌯': 'bread', '🌮': 'bread', '🥙': 'bread', '🥪': 'bread', '🥞': 'bread', '🥟': 'bread',
+  // Suppe und Eintopf
   '🍜': 'soup', '🍲': 'soup', '🥣': 'soup', '🥄': 'soup',
-  // spicy (4)
   '🌶': 'spice',
-  // fruit & sweet (8)
-  '🍌': 'fruit', '🍓': 'fruit', '🥥': 'fruit', '🍪': 'fruit',
-  // other — Reste, Restaurant, Vorratsglas, Konserve, Nüsse (6)
-  '🍽': 'other', '🍷': 'other', '♻️': 'other', '🫙': 'other', '🥫': 'other', '🥜': 'other',
+  // Obst und Süsses getrennt
+  '🍌': 'fruit', '🍓': 'fruit', '🥥': 'fruit',
+  '🍪': 'sweet',
+  '🫙': 'pantry', '🥫': 'pantry', '🥜': 'pantry',
+  // Die alte Restkategorie „other" ist in drei Gruppen aufgelöst — Restaurantbesuch,
+  // Reste und Getränk sind in einem Essensplaner drei verschiedene Dinge.
+  '🍽': 'dining',
+  '♻️': 'leftovers',
+  '🍷': 'drinks',
 }
 
 // Emoji treten mit und ohne Variantenselektor U+FE0F auf ('♻️' vs '♻') — in recipes.js
@@ -75,5 +100,5 @@ export function familyOf(emoji) {
 }
 
 export function familyColor(family) {
-  return FOOD_FAMILIES[family]?.color ?? FOOD_FAMILIES.other.color
+  return FOOD_FAMILIES[family]?.color ?? FOOD_FAMILIES.dining.color
 }

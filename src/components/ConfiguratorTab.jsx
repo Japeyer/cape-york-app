@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import TripProgress from './TripProgress.jsx'
+import { PersonIcon } from './person-icons.jsx'
 import { S } from '../strings.js'
 import {
   TYPES, APPETITES,
@@ -117,7 +118,7 @@ function PersonRow({ person, index, canRemove, onChange, onRemove }) {
               className={`person-pill${person.type === t ? ' active' : ''}`}
               onClick={() => update({ type: t })}
             >
-              <span className="person-pill-icon">{opt.icon}</span>
+              <span className="person-pill-icon"><PersonIcon type={t} /></span>
               <span className="person-pill-label">{opt.label}</span>
             </button>
           )
@@ -206,7 +207,7 @@ function GroupEditor({ people, onChange }) {
   )
 }
 
-export default function ConfiguratorTab({ config, tripName, tripDescription, onSubmit, onResetAll, premium, onUpgrade }) {
+export default function ConfiguratorTab({ config, tripName, tripDescription, onSubmit, onResetAll, onTourPageChange, premium, onUpgrade }) {
   // Name + Beschreibung gehören zum Trip, nicht zur Config — deshalb eigener State neben
   // `draft` und Rückgabe als zweites onSubmit-Argument.
   const [meta, setMeta] = useState(() => ({
@@ -279,6 +280,10 @@ export default function ConfiguratorTab({ config, tripName, tripDescription, onS
   // Trip-Tabs) — die frühere Intro-Karte ist darin aufgegangen: statt eines Textblocks über
   // der Seite zeigt der Spotlight jetzt direkt auf Kalender / Gruppe / Kühlschrank usw.
   const tourPage = `config-${curStep.key}`
+
+  // Dem App-Shell melden, auf welchem Schritt wir stehen — die Topbar liegt dort und
+  // braucht es fuer das ⓘ-Sheet der aktuellen Seite.
+  useEffect(() => { onTourPageChange?.(tourPage) }, [tourPage, onTourPageChange])
 
   // Calendar-Range-Select: ruft das mit (startISO, days) wenn der User eine Range gewählt hat.
   // Bamaga-Day kommt aus 0.55-Heuristik wenn vorher noch nichts war; sonst auf neue Range geklemmt.

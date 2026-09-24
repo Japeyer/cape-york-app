@@ -46,11 +46,11 @@ describe('Lebensmittel-Familien', () => {
   // Variantenselektor U+FE0F: '♻️' steht so in recipes.js, andere Emoji mal mit,
   // mal ohne. familyOf() muss beide Schreibweisen finden.
   it('findet Emoji auch ohne Variantenselektor', () => {
-    expect(familyOf('♻️')).toBe('other')
-    expect(familyOf('♻')).toBe('other')
+    expect(familyOf('♻️')).toBe('leftovers')
+    expect(familyOf('♻')).toBe('leftovers')
   })
 
   it('familyColor fällt für Unbekanntes auf die Restkategorie zurück', () => {
-    expect(familyColor('gibtsnicht')).toBe(FOOD_FAMILIES.other.color)
+    expect(familyColor('gibtsnicht')).toBe(FOOD_FAMILIES.dining.color)
   })
 })

@@ -12,6 +12,7 @@ import ShoppingTab from './components/ShoppingTab.jsx'
 import ShopStopSheet from './components/ShopStopSheet.jsx'
 import { MenuIcon, RecipesIcon, ShoppingIcon, InventoryIcon, KangarooIcon } from './components/icons.jsx'
 import PageTour from './components/PageTour.jsx'
+import PageInfoSheet from './components/PageInfoSheet.jsx'
 import { REGION } from './data/regions.js'
 import { generate } from './lib/generator.js'
 import {
@@ -226,6 +227,10 @@ export default function App() {
   // Das ist der neue "Source of Truth"-Einstieg. Tab-State wird nur in trip-active genutzt.
   const [view, setView] = useState('home')
   const [activeTab, setActiveTab] = useState('menu')
+  // ⓘ-Sheet der aktuellen Seite. `configTourPage` meldet der Wizard hoch — nur er weiß,
+  // auf welchem Schritt er gerade steht.
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [configTourPage, setConfigTourPage] = useState(null)
 
   // Sprung zu einem bestimmten Rezept (aus MenuTab "See recipe" oder dem "Wo verwendet?"-Dropdown
   // in der Einkaufsliste): Recipes-Tab öffnen + das Rezept fokussiert aufklappen/scrollen.
@@ -444,7 +449,14 @@ export default function App() {
     ? 'home'
     : view === 'trip-active'
       ? (activeSupplyPoint ? 'shopping' : (['menu', 'recipes', 'inventory'].includes(activeTab) ? activeTab : null))
-      : null
+      : (view === 'trip-config' ? configTourPage : null)
+
+  // ⓘ oben rechts: liefert die Tutorial-Inhalte der aktuellen Seite nach. Ersetzt die
+  // Einführungssätze, die früher auf jeder Seite standen. Auf Home bleibt das ⓘ die
+  // App-Info (Datenschutz/Quellen) — dort ist es kein Seiten-Tutorial.
+  const showPageInfoBtn = (view === 'trip-active' || view === 'trip-config') && !!tourPage
+  // Stop-Notiz als Vorspann im Sheet — sie ist von der Einkaufsliste hierher gewandert.
+  const pageInfoNote = activeSupplyPoint ? S.shopping.notes[activeSupplyPoint.id] : null
 
   const dietLabel = S.config.dietOptions[result.config.dietApplied].label
   const tripSummary = config.completed && config.days >= 1
@@ -518,6 +530,16 @@ export default function App() {
             ⓘ
           </button>
         )}
+        {showPageInfoBtn && (
+          <button
+            className="topbar-about"
+            data-info="page"
+            onClick={() => setInfoOpen(true)}
+            aria-label="what you can do on this page"
+          >
+            ⓘ
+          </button>
+        )}
       </header>
 
       <main className="content" ref={contentRef}>
@@ -563,6 +585,7 @@ export default function App() {
             tripDescription={getActiveTrip(store)?.description || ''}
             onSubmit={handleConfigSubmit}
             onResetAll={resetAll}
+            onTourPageChange={setConfigTourPage}
             premium={premium}
             onUpgrade={handleOpenPremium}
           />
@@ -626,6 +649,10 @@ export default function App() {
       {/* Kurz-Tutorial beim ERSTEN Öffnen einer Seite: Rest ausgegraut, die gerade erklärte
           Funktion hervorgehoben + bedienbar. `key` → beim Seitenwechsel frisch aufsetzen. */}
       {tourPage && <PageTour key={tourPage} page={tourPage} />}
+
+      {infoOpen && tourPage && (
+        <PageInfoSheet page={tourPage} note={pageInfoNote} onClose={() => setInfoOpen(false)} />
+      )}
 
       {/* Stop-Auswahl der Einkaufslisten — klappt über der Nav auf, deshalb hier
           neben (nicht in) der <nav>. */}

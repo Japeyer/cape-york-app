@@ -248,7 +248,8 @@ export default function RecipesTab({ plan = [], persons = 2, factor = BASE_SERVI
   const myRecipesBlock = (
     <div className="my-recipes">
       <div className="shdr">{S.recipes.myRecipesLabel}</div>
-      {userRecipes.length === 0 && <div className="my-recipes-empty">{S.recipes.myRecipesEmpty}</div>}
+      {/* Der frühere Erklärsatz ("Add your own meals here…") ist entfallen — er sagte
+          dasselbe wie das Tutorial. Nachzulesen über das ⓘ oben rechts. */}
       {userRecipes.map(r => (
         <div key={r.id} className="my-recipe">
           <RecipeCard recipe={r} persons={persons} factor={factor} focused={r.id === focusRecipeId} />

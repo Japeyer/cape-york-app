@@ -109,6 +109,26 @@ describe('MenuTab — Kartenkopf', () => {
     expect(meals).toMatch(/Leftovers/i)
   })
 
+  it('zeigt auf Pickup-/Dropoff-Zeilen das Fahrzeug-Icon statt des Emoji', () => {
+    renderPlan([
+      day(1, { f: { skip: true, kind: 'pickup' } }),
+      day(2, { ab: { skip: true, kind: 'dropoff' } }),
+    ])
+    // Beide Karten aufklappen — die Skip-Zeilen liegen im Karten-Body.
+    heads().forEach(h => act(() => h.click()))
+
+    const rows = [...document.querySelectorAll('.meal-skip')]
+    expect(rows.length).toBe(2)
+    for (const row of rows) {
+      expect(row.textContent).not.toContain('🚙')
+      const img = row.querySelector('img.meal-skip-car')
+      expect(img).toBeTruthy()
+      expect(img.getAttribute('src')).toMatch(/wizard-car\.png$/)
+      // Dekorativ — der Text daneben sagt bereits, was los ist.
+      expect(img.getAttribute('alt')).toBe('')
+    }
+  })
+
   it('lässt Pickup-/Dropoff-Slots aus der Unterzeile weg', () => {
     renderPlan([day(1, { f: { skip: true, kind: 'pickup' } }), day(2)])
     const meals = firstHead().querySelector('.day-meals').textContent

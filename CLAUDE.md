@@ -1,4 +1,4 @@
-# Cape York 2026 — Project Brief for Claude Code
+# Cape York Planner — Project Brief for Claude Code
 
 ## Was ist dieses Projekt?
 Eine Progressive Web App (PWA) als Reise-Begleiter für Cape-York-4WD-Mieter aus Cairns: Konfigurator → generierter Menüplan → Offline-Rezepte → skalierte Einkaufsliste (Cairns + Bamaga). Konfigurator-Range im MVP: 1–8 Personen, 7–28 Tage.

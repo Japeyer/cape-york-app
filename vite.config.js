@@ -55,8 +55,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Cape York',
-        short_name: 'Cape York',
+        name: 'Cape York Planner',
+        short_name: 'Cape York Planner',
         description: 'Cape York 4WD camping planner — menu, recipes & shopping list',
         theme_color: '#C0600C',
         background_color: '#F2EDE7',
