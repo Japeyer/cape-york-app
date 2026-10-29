@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#C0600C" />
+  <meta name="robots" content="index,follow" />
+  <title>Privacy Policy — Cape York Planner</title>
+  <style>
+  :root {
+    --or: #C0600C;
+    --bg: #F2EDE7;
+    --tx: #333;
+    --tx2: #666;
+    --bdr: #DDD;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--tx);
+    line-height: 1.6;
+    font-size: 16px;
+  }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+    background: #fff;
+    min-height: 100vh;
+    border-left: 1px solid var(--bdr);
+    border-right: 1px solid var(--bdr);
+  }
+  h1 {
+    color: var(--or);
+    font-size: 28px;
+    margin: 0 0 8px;
+    border-bottom: 2px solid var(--or);
+    padding-bottom: 12px;
+  }
+  h2 {
+    color: var(--tx);
+    font-size: 20px;
+    margin: 28px 0 12px;
+  }
+  h3 { font-size: 16px; margin: 20px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul, ol { padding-left: 24px; margin: 0 0 12px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--or); }
+  a:hover { text-decoration: underline; }
+  code {
+    background: #F5EFEA;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 13px;
+    color: var(--tx);
+  }
+  hr {
+    border: none;
+    border-top: 1px solid var(--bdr);
+    margin: 24px 0;
+  }
+  strong { color: var(--tx); }
+  @media (max-width: 480px) {
+    main { padding: 16px 14px 60px; border-left: none; border-right: none; }
+    h1 { font-size: 22px; }
+    h2 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+  <main>
+<h1>Privacy Policy — Cape York Planner</h1>
+<p><strong>Effective:</strong> 2026-10-28
+<strong>Contact:</strong> <a href="mailto:support@example.com">support@example.com</a></p>
+<p>This is the privacy policy for the <strong>Cape York Planner</strong> trip-planning app
+(web app and Android app — both versions covered).</p>
+<p>We have written this in plain language. The TL;DR is: <strong>the app does not
+collect, transmit, or share any personal data.</strong> Everything you enter
+stays on your device.</p>
+<hr>
+<h2>1. What data the app handles</h2>
+<p>When you use Cape York Planner, you enter trip-planning information into the
+app — for example:</p>
+<ul>
+<li>Number of days on the road and trip start date</li>
+<li>Number of people in your group, with type (adult / child) and appetite, or a daily kcal value you set yourself</li>
+<li>Dietary preference (omnivore / vegetarian / vegan)</li>
+<li>Allergies or food preferences (selected from a fixed list)</li>
+<li>Cooking equipment (number of burners, fridge size and type) and how much
+cooking effort you want</li>
+<li>Resupply stops you plan to make (Cooktown, Coen, Archer River, Weipa, Bamaga)</li>
+<li>Days you plan to eat at restaurants</li>
+<li>Recipe swaps and shopping-list customizations (added items, deleted
+items, quantity overrides)</li>
+<li>Which shopping items you have ticked off</li>
+<li>What you cooked, and what you marked as used up in your stock or added
+to it yourself</li>
+<li>Which recipes your plan showed on days that have passed and on meals you
+logged (including where leftovers were planned), so they stay the same
+after updates and later changes</li>
+<li>Recipes you create yourself (name, ingredients, steps)</li>
+<li>The name and description you give each trip</li>
+</ul>
+<p>Trip names, trip descriptions and your own recipes are free text. Whatever
+you type there stays on your device like everything else.</p>
+<p>We refer to this collectively as <strong>trip data</strong>.</p>
+<p>The app does <strong>not</strong> ask for, collect, or process any of the following:</p>
+<ul>
+<li>Name, email, phone number, or address</li>
+<li>Account credentials or login information</li>
+<li>Location data (GPS, IP-based geolocation, etc.)</li>
+<li>Photos, contacts, or other device data</li>
+<li>Health information beyond the dietary preferences listed above</li>
+<li>Payment information</li>
+</ul>
+<hr>
+<h2>2. Where the data is stored</h2>
+<p>All trip data is stored <strong>locally on your device</strong> using the browser&#39;s
+<a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage"><code>localStorage</code></a>
+mechanism (or, in the Android app, the equivalent local app storage).
+Specifically, the app uses these storage keys:</p>
+<ul>
+<li><code>cfg_trips_v1</code> — your trips and their configuration (the items listed in section 1); <code>cfg_v1</code> is the older single-trip format, which the app moves into <code>cfg_trips_v1</code> and then removes (after the move, or at the next save)</li>
+<li><code>ck_&lt;trip&gt;~&lt;stop&gt;&lt;item-id&gt;</code> — which shopping items you have ticked off at each stop</li>
+<li><code>del_&lt;trip&gt;~&lt;stop&gt;:&lt;item-id&gt;</code> — items you have hidden from the shopping list at a stop (older entries without a stop, <code>del_&lt;trip&gt;~&lt;item-id&gt;</code>, still apply to all stops)</li>
+<li><code>qty_&lt;trip&gt;~&lt;stop&gt;:&lt;item-id&gt;</code> — quantities you changed at a stop (older entries <code>qty_&lt;trip&gt;~&lt;item-id&gt;</code> still apply to all stops)</li>
+<li><code>add_&lt;trip&gt;~&lt;stop&gt;_&lt;item-id&gt;</code> — items you added to the shopping list yourself</li>
+<li><code>invu_&lt;trip&gt;~&lt;ingredient&gt;</code> and <code>invadd_&lt;trip&gt;~&lt;item-id&gt;</code> — what you marked as used in your stock, and items you added to it</li>
+<li><code>user_recipes_v1</code> — recipes you created yourself</li>
+<li><code>premium_v1</code> — a licence key, if you entered one</li>
+<li><code>ui_theme_v1</code> and <code>ui_haptics_v1</code> — appearance (light or dark) and vibration, only if you changed them</li>
+<li><code>ui_*</code> — which tips you have seen and simple view settings (for example &quot;Hide checked&quot;)</li>
+</ul>
+<p>This data <strong>never leaves your device.</strong> The app does not send it to any
+server, ours or anyone else&#39;s. There is no backend, no user account, and
+no cloud sync.</p>
+<p>When you share a shopping list, the text goes to the app you pick (for
+example WhatsApp or email). The app itself sends nothing.</p>
+<hr>
+<h2>3. Who we share it with</h2>
+<p><strong>Nobody.</strong> Because the data never leaves your device, there is nothing
+to share. We do not sell, license, rent, transfer, or otherwise disclose
+trip data to any third party — because we do not have it.</p>
+<p>If you share a shopping list yourself, you choose the app and the
+recipient. The app only hands the text over to the app you pick.</p>
+<hr>
+<h2>4. Network connections</h2>
+<p>The app makes <strong>no network requests during normal use.</strong> It is designed
+to work fully offline (Cape York has limited mobile coverage, so this is
+a deliberate design choice).</p>
+<p>The only network-related component is the <strong>Service Worker</strong>, which is a
+standard browser technology that caches the app&#39;s own files (HTML, CSS,
+JavaScript, icons) so the app loads instantly and works offline. The
+Service Worker does not transmit any data outwards.</p>
+<p>Sharing a shopping list (see section 3) opens the app you pick; any
+sending is done by that app, not by Cape York Planner.</p>
+<hr>
+<h2>5. Cookies and tracking</h2>
+<p>The app does <strong>not</strong> use:</p>
+<ul>
+<li>Cookies (HTTP cookies)</li>
+<li>Analytics services (Google Analytics, Mixpanel, Amplitude, etc.)</li>
+<li>Advertising networks</li>
+<li>Tracking pixels or beacons</li>
+<li>Third-party fonts (e.g. Google Fonts) or CDN-hosted libraries</li>
+<li>Crash-reporting services (Sentry, Crashlytics, etc.)</li>
+</ul>
+<p>We use <code>localStorage</code> to remember your trip configuration. This is
+technically not a cookie, and it is never transmitted to any server.
+Websites on other domains cannot read it. In the web version, the browser
+shares this storage with every page on the same domain
+(japeyer.github.io), which also hosts other apps by the same developer;
+those apps could technically read it. In the Android app, the storage
+belongs to the app alone.</p>
+<hr>
+<h2>6. Children</h2>
+<p>The app contains no advertising, no in-app purchases, and no
+communication features. It is suitable for use by children but is not
+specifically targeted at them. We do not knowingly collect any data from
+anyone of any age — see sections 1–3.</p>
+<hr>
+<h2>7. How to delete your data</h2>
+<p>Because all data is stored locally on your device, you control it
+completely:</p>
+<ul>
+<li><strong>Inside the app</strong> (each of these needs a press and hold, so nothing is
+deleted by a single tap):<ul>
+<li><strong>Delete</strong> on a trip card on the home screen removes that trip with
+its plan, shopping ticks and stock. You can undo it for a few seconds.</li>
+<li><strong>Reset all</strong> on the last step of &quot;Trip settings&quot; resets that trip&#39;s
+settings, recipe swaps, eating-out choices, meal log and the meals kept
+for past days, and clears its shopping ticks, shopping-list changes and
+stock entries.</li>
+<li><strong>Delete</strong> on one of your own recipes removes that recipe.</li>
+<li><strong>Deactivate</strong> under About → Cape York Planner Premium removes the
+licence key from this device.</li>
+<li>If the app ever shows &quot;Something went wrong&quot;, <strong>Reset app &amp; reload</strong>
+clears everything the app has stored on this device.</li>
+</ul>
+</li>
+<li><strong>At the OS level:</strong> uninstalling the app (Android) or clearing the
+site data in your browser settings (web) removes everything the app
+has stored.</li>
+</ul>
+<hr>
+<h2>8. Changes to this policy</h2>
+<p>If this policy changes, the new version will be published at the same
+URL with an updated &quot;Effective&quot; date at the top. Because we do not
+collect contact information, we cannot notify you individually — please
+re-read the policy if you are concerned about updates.</p>
+<hr>
+<h2>9. Contact</h2>
+<p>If you have questions about this privacy policy or the app&#39;s handling of
+data, contact:</p>
+<p><strong><a href="mailto:support@example.com">support@example.com</a></strong></p>
+
+  </main>
+</body>
+</html>
